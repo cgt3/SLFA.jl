@@ -35,9 +35,15 @@ function rel_supr(::Minimum, X, y, i_extrema, I_support_set, I_exclude=false)
     return rel_supr(X, -y, i_extrema, I_support_set, I_exclude, Maximum())
 end
 
+
+@inline function dist(i1, i2, X::Vector{T_x}, D::AbstractMatrix) where T_x<:AbstractFloat
+    D[i1, i2] != 0 ? (return D[i1, i2]) : (return norm(X[i1] - X[i2]))
+end
+
+
 # Helper functions ====================================================================
 
-function get_nbr_matrix(X::Vector{T}; duplicate_tol=MACHINE_EPS_FACTOR*eps(T)) where T<:Real
+function get_nbr_matrix(X::Vector{T_x}; duplicate_tol=MACHINE_EPS_FACTOR*eps(T_x)) where T_x<:AbstractFloat
     n = length(X)
 
     # Get elements in sorted order
@@ -79,13 +85,60 @@ function get_nbr_matrix(X::Vector{T}; duplicate_tol=MACHINE_EPS_FACTOR*eps(T)) w
     return D
 end
 
-function get_support_set(X, y, i_extrema, G; is_monotonic=DEFAULT_MONOTONICITY::Monotonicity)
+function get_support_set(X::Vector{T_x}, y::Vector{T_y}, i_extrema::Integer, D::AbstractMatrix, extremum_type::Extremum; 
+    is_monotonic=DEFAULT_MONOTONICITY::Monotonicity,
+    start_gap=0.0::T_x
+    ) where {T_x<:AbstractFloat, T_y<:Number}
+
+    support_set = zeros(Bool, length(y))
+    support_set[i_extrema] = true
+
+    I_next = findnz(D[:, i_extrema])[1]
+    I_prev = [ i_extrema for i in 1:length(I_next) ]
+
+    in_I_next = zeros(Bool, length(y))
+    in_I_next[I_next] .= true
+
+    I_terminal = Int64[]
+    in_I_terminal = zeros(Bool, length(y))
+    i = 1
+    while i <= length(I_next) # Note: the size of I_next can change as the for-loop iterates
+        i_nbr  = I_next[i]
+        i_prev = I_prev[i]
+
+        if !support_set[i_nbr] && dist(i_nbr, i_prev, X, D) > start_gap 
+            if is_monotonic(y[i_prev], y[i_nbr], extremum_type)
+                support_set[i_nbr] = true
+                new_nbrs = findnz(D[:,i_nbr])[1]
+                is_boundary_pt = true
+                for i_new in new_nbrs
+                    if !support_set[i_new] && !in_I_next[i_new] # TODO: also need sense of direction here for nD case
+                        is_boundary_pt = false
+                        push!(I_next, i_new)
+                        push!(I_prev, i_nbr)
+                    end
+                end
+
+                if is_boundary_pt && !in_I_terminal[i_nbr]
+                    in_I_terminal[i_nbr] = true
+                    push!(I_terminal, i_nbr)
+                end
+            elseif !in_I_terminal[i_prev] && i_prev != i_extrema
+                in_I_terminal[i_prev] = true
+                push!(I_terminal, i_prev)
+            end
+        end
+
+        i += 1
+    end
+
+    return support_set, I_terminal
 end
 
-function get_k_extrema(X, y, G; k=DEFAULT_K_EXTREMA, is_monotonic=DEFAULT_MONOTONICITY::Monotonicity)
+function get_k_extrema(X, y, D::AbstractMatrix; k=DEFAULT_K_EXTREMA, is_monotonic=DEFAULT_MONOTONICITY::Monotonicity)
 end
 
-function choose_extrema(X, y, support_sets, G, score_func)
+function choose_extrema(X, y, support_sets, D::AbstractMatrix, score_func)
 end
 
 
@@ -118,7 +171,7 @@ end
 #     is_monotonic=:strict,
 #     start_gap=DEFAULT_START_GAP::Real,
 #     k_extrema=DEFAULT_K_EXTREMA::Integer,
-#     ) where {T_x<:Real, T_y<:Number, T_metric<:Real}
+#     ) where {T_x<:AbstractFloat, T_y<:Number, T_metric<:Real}
 
 #     if length(X) != length(y)
 #         throw("SLFA.train_RBFN: Number of data points and residual values do not match.")
@@ -145,14 +198,14 @@ end
 # end
 
 # # nD
-# function train_RBFN(X::Matrix{T_x}, y::Vector{T_y}; ) where {T_x<:Real, T_y<:Number}
+# function train_RBFN(X::Matrix{T_x}, y::Vector{T_y}; ) where {T_x<:AbstractFloat, T_y<:Number}
 #     if size(X,1) != length(y)
 #         throw("SLFA.train_RBFN: Number of data points and residual values do not match.")
 #     end
 # end
 
 # # Quasi-1D
-# function train_RBFN_quasi1D(X_all::Vector{Matrix{T_x}}, y_all::Vector{Vector{T_y}}; ) where {T_x<:Real, T_y<:Number}
+# function train_RBFN_quasi1D(X_all::Vector{Matrix{T_x}}, y_all::Vector{Vector{T_y}}; ) where {T_x<:AbstractFloat, T_y<:Number}
 #     if length(X_all) != length(y_all)
 #         throw("SLFA.train_RBFN: Length of X_all does not match length of y_all")
 #     end

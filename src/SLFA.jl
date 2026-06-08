@@ -14,7 +14,7 @@ export RBF_Type, Gaussian
 export RBF, RBFN
 
 # Functions
-export get_nbr_matrix
+export get_nbr_matrix, get_support_set
 
 # Abstract data types for classifying/parameterizing RBFs
 abstract type RBF_Orientation end
