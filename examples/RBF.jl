@@ -25,3 +25,5 @@ rbf_aniso([0,0])
 
 rbf_iso2 = Gaussian([2], w)
 network = RBFN(0, [1, 2], [rbf_iso1, rbf_iso2])
+
+rbfs = Gaussian{Anisotropic{Aligned}, 2}[]

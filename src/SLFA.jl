@@ -1,5 +1,9 @@
 module SLFA
 
+using LinearAlgebra
+using SparseArrays
+
+
 # Abstract types
 export RBF_Orientation, Rotated, Aligned
 export RBF_Shape, Isotropic, Anisotropic
@@ -10,6 +14,7 @@ export RBF_Type, Gaussian
 export RBF, RBFN
 
 # Functions
+export get_nbr_matrix
 
 # Abstract data types for classifying/parameterizing RBFs
 abstract type RBF_Orientation end
@@ -20,22 +25,19 @@ abstract type RBF_Shape end
 abstract type Isotropic   <:RBF_Shape end
 abstract type Anisotropic{T_orientation} <:RBF_Shape end
 
-abstract type RBF_Sparsity end
-abstract type Sparse <: RBF_Sparsity end
-abstract type Dense  <: RBF_Sparsity end
-
 # Abstract type for setting RBF parameters
 abstract type RBF end
+abstract type GaussianRBF <: RBF end
 
-struct Gaussian{T_shape, T_sparsity, dim} <: RBF
+struct Gaussian{T_shape, dim} <: GaussianRBF
     x0::Union{Vector{<:Real}, Real}
     w::Union{Vector{<:Real}, Real}
 
-    function Gaussian{Isotropic, Dense, 1}(x0::Real, w::Real)
-        return new{Isotropic, Dense, 1}(x0, w)
+    function Gaussian{Isotropic, 1}(x0::Real, w::Real)
+        return new{Isotropic, 1}(x0, w)
     end
 
-    function Gaussian{Isotropic, Dense, dim}(x0::Vector{T}, w::Real) where {dim, T<:Real}
+    function Gaussian{Isotropic, dim}(x0::Vector{T}, w::Real) where {dim, T<:Real}
         if !(dim isa Integer)
             throw("SLFA.Gaussian: dim must be an integer.")
         end
@@ -49,13 +51,13 @@ struct Gaussian{T_shape, T_sparsity, dim} <: RBF
         end
 
         if length(x0) == 1
-            return new{Isotropic, Dense, dim}(x0[1], w)
+            return new{Isotropic, dim}(x0[1], w)
         else
-            return new{Isotropic, Dense, dim}(x0, w)
+            return new{Isotropic, dim}(x0, w)
         end
     end
  
-    function Gaussian{Anisotropic{Aligned}, Dense, dim}(x0::Vector{T}, w::Vector{T}) where {dim,T<:Real}
+    function Gaussian{Anisotropic{Aligned}, dim}(x0::Vector{T}, w::Vector{T}) where {dim,T<:Real}
         if !(dim isa Integer)
             throw("SLFA.Gaussian: dim must be an integer.")
         end
@@ -74,33 +76,33 @@ struct Gaussian{T_shape, T_sparsity, dim} <: RBF
             throw("SLFA.Gaussian: length of x0 ($(length(x0))) does not match length of w ($(length(w))).")
         end
 
-        return new{Anisotropic{Aligned}, Dense, dim}(x0, w)
+        return new{Anisotropic{Aligned}, dim}(x0, w)
     end
 end
 
 # Non-parametric constructors
 function Gaussian(x0::Real, w::Real)
-    return Gaussian{Isotropic, Dense, 1}(x0, w)
+    return Gaussian{Isotropic, 1}(x0, w)
 end
 
 function Gaussian(x0::Vector{T}, w::Real) where T<:Real
-    return Gaussian{Isotropic, Dense, length(x0)}(x0, w)
+    return Gaussian{Isotropic, length(x0)}(x0, w)
 end
 
 function Gaussian(x0::Vector{T}, w::Vector{T}) where T<:Real
     if length(x0) == 1 && length(w) == 1
-        return Gaussian{Isotropic, Dense, 1}(x0[1], w[1])
+        return Gaussian{Isotropic, 1}(x0[1], w[1])
     end
 
-    return Gaussian{Anisotropic{Aligned}, Dense, length(x0)}(x0, w)
+    return Gaussian{Anisotropic{Aligned}, length(x0)}(x0, w)
 end
 
 # Functors for evaluating individual RBFs
-function (rbf::Gaussian{Isotropic, Dense, dim})(x) where dim
+function (rbf::Gaussian{Isotropic, dim})(x) where dim
     return exp( -sum( (rbf.w .*(x - rbf.x0)) .^ 2 ) )
 end
 
-function (rbf::Gaussian{Anisotropic{Aligned}, Dense, dim})(x) where dim
+function (rbf::Gaussian{Anisotropic{Aligned}, dim})(x) where dim
     return exp( -sum( (rbf.w .*(x - rbf.x0)) .^ 2 ) ) 
 end
 
@@ -112,12 +114,12 @@ struct RBFN{T_RBF}
     a::Vector{<:Number}
     rbf::Vector{T_RBF}
 
-    function RBFN(a0::Real, a::Vector{T}, rbf::Vector{T_RBF}) where {T<:Real, T_RBF<:RBF}
-        if length(a) != length(rbf)
-            throw("SLFA.RBFN: number of weights ($(length(a)))does not match number of basis functions ($(length(rbf))).")
+    function RBFN(a0::T, a::Vector{T}, rbfs::Vector{T_RBF}) where {T<:Real, T_RBF<:RBF}
+        if length(a) != length(rbfs)
+            throw("SLFA.RBFN: number of weights ($(length(a)))does not match number of basis functions ($(length(rbfs))).")
         end
 
-        return new{eltype(rbf)}(length(a), a0, a, rbf)
+        return new{eltype(rbfs)}(length(a), a0, a, rbfs)
     end
 end
 
@@ -129,7 +131,7 @@ function (network::RBFN)(x::Number)
     end
 end
 
-#include("train_RBFN.jl")
+include("train_RBFN.jl")
 
 
 end # module
