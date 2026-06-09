@@ -68,6 +68,8 @@ $\newcommand{\btheta}{\bm{\theta}}$
     1. All the duplicates of a *neighboring point* are added as neighbors
     2. Duplicates of the host point are not taken as neighbors
     3. As a consequence of 4.1 and 4.2, duplicate points will have the same neighbors as one another.
+    4. When computing support sets, duplicated points are considered independently of one another. Consequently, it is possible for one duplicate to be in a support set, while another of its duplicates may not.
+
 5. Support sets: 
     1. Support sets are returned as bit vectors
     2. The extrema point and terminal points are included in the support set
