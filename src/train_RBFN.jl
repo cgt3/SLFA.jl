@@ -37,16 +37,26 @@ end
 
 
 @inline function dist!(D::AbstractMatrix, i1, i2, X::Vector{T_x}) where T_x<:AbstractFloat
-    if D[i1, i2] == 0
-        D[i1, i2] = abs(X[i1] - X[i2])
+    if D[i1,i2] == 0 && D[i2,i1] == 0
+        D[i1,i2] = abs(X[i1] - X[i2])
+        D[i2,i1] = D[i1,i2]
+    elseif D[i1,i2] == 0
+        D[i1,i2] = D[i2,i1]
+    elseif D[i2,i1] == 0
+        D[i12,i1] = D[i1,i2]
     end
 
     return D[i1,i2]
 end
 
 @inline function dist!(D::AbstractMatrix, i1, i2, X::Matrix{T_x}) where T_x<:AbstractFloat
-    if D[i1, i2] == 0
-        D[i1, i2] = norm(X[i1] - X[i2])
+    if D[i1,i2] == 0 && D[i2,i1] == 0
+        D[i1,i2] = norm(X[i1] - X[i2])
+        D[i2,i1] = D[i1, i2]
+    elseif D[i1,i2] == 0
+        D[i1,i2] = D[i2,i1]
+    elseif D[i2,i1] == 0
+        D[i12,i1] = D[i1,i2]
     end
 
     return D[i1,i2]
@@ -100,6 +110,48 @@ function get_nbr_matrix(X::Vector{T_x}; duplicate_tol=MACHINE_EPS_FACTOR*eps(T_x
     return A, D
 end
 
+function get_support_set_1Dsorted(X::Vector{T_x}, y::Vector{T_y}, i_extrema::Integer, A::AbstractMatrix, D::AbstractMatrix, extremum_type::Extremum; 
+    is_monotonic=DEFAULT_MONOTONICITY::Monotonicity,
+    start_gap=0.0::T_x
+    ) where {T_x<:AbstractFloat, T_y<:Number}
+
+    support_set = zeros(Bool, length(y))
+    support_set[i_extrema] = true
+    I_terminal = Int64[]
+
+    i_prev = i_extrema
+    i_left = i_extrema - 1
+    while i_left > 0 && i_prev > 0 && ( (dist!(D, i_prev, i_left, X) > start_gap && is_monotonic(y[i_prev], y[i_left], extremum_type)) || dist!(D, i_prev, i_left, X) <= start_gap )
+        support_set[i_left] = true
+        if dist!(D, i_prev, i_left, X) > start_gap
+            i_prev -= 1
+        end
+        i_left -= 1
+    end
+    i_left += 1
+
+    if i_left != i_extrema
+        push!(I_terminal, i_left)
+    end
+
+    i_prev = i_extrema
+    i_right = i_extrema + 1
+    while i_right <= n && i_prev <= n && ( (dist!(D, i_prev, i_right, X) > start_gap && is_monotonic(y[i_prev], y[i_right], extremum_type)) || dist!(D, i_prev, i_right, X) <= start_gap )
+        support_set[i_right] = true
+        if dist!(D, i_prev, i_right, X) > start_gap
+            i_prev -= 1
+        end
+        i_right += 1
+    end
+    i_right -= 1
+
+    if i_right != i_extrema
+        push!(I_terminal, i_right)
+    end
+
+    return support_set, I_terminal
+end
+
 function get_support_set(X::Vector{T_x}, y::Vector{T_y}, i_extrema::Integer, A::AbstractMatrix, D::AbstractMatrix, extremum_type::Extremum; 
     is_monotonic=DEFAULT_MONOTONICITY::Monotonicity,
     start_gap=0.0::T_x
@@ -109,13 +161,14 @@ function get_support_set(X::Vector{T_x}, y::Vector{T_y}, i_extrema::Integer, A::
     support_set[i_extrema] = true
 
     I_next = findnz(A[:, i_extrema])[1]
-    I_prev = [ i_extrema for i in 1:length(I_next) ]
+    I_prev = [ i_extrema for i in 1:length(I_next) ]   # These are the nodes to check monotonicity againsts
+    I_parent = [ i_extrema for i in 1:length(I_next) ] # These are the nodes that added a given node
 
     in_I_next = zeros(Bool, length(y))
     in_I_next[I_next] .= true
 
-    I2I_next = zeros(Int64, length(y))
-    I2I_next[I_next] .= [1:length(I_next)...]
+    I2I_prev = zeros(Int64, length(y))
+    I2I_prev[I_next] .= [1:length(I_next)...]
 
     I_terminal = Int64[]
     in_I_terminal = zeros(Bool, length(y))
@@ -123,26 +176,29 @@ function get_support_set(X::Vector{T_x}, y::Vector{T_y}, i_extrema::Integer, A::
     while i <= length(I_next) # Note: the size of I_next can change as the for-loop iterates
         i_nbr  = I_next[i]
         i_prev = I_prev[i]
+        i_parent = I_parent[i]
 
         if !support_set[i_nbr] 
-            monotonic = is_monotonic(y[i_prev], y[i_nbr], extremum_type)
-            in_range = dist!(D, i_nbr, i_prev, X) > start_gap
-            if (in_range && monotonic) || !in_range
+            if is_monotonic(y[i_prev], y[i_nbr], extremum_type)
                 support_set[i_nbr] = true
                 new_nbrs = findnz(A[:,i_nbr])[1]
+
                 is_boundary_pt = true
                 for i_new in new_nbrs
                     if !support_set[i_new] && !in_I_next[i_new] # TODO: also need sense of direction here for nD case
                         is_boundary_pt = false
                         push!(I_next, i_new)
-                        I2I_next[i_new] = length(I_next)
+                        push!(I_parent, i_nbr) # TODO: for nD case, a node can have multiple parent nodes
+                        I2I_prev[i_new] = length(I_next)
 
                         if dist!(D, i_nbr, i_new, X) > start_gap
                             push!(I_prev, i_nbr)
                         else
+                            # TODO: for nD case, the parent's lineage may not be the best way to find a comparison 
+                            #       point due to the spiral effect
                             i_prev_start_gap = i_prev
                             while i_prev_start_gap != i_extrema && dist!(D, i_new, i_prev_start_gap, X) <= start_gap
-                                i_prev_start_gap = I_prev[I2I_next[i_prev]]
+                                i_prev_start_gap = I_prev[I2I_prev[i_prev_start_gap]]
                             end
                             push!(I_prev, i_prev_start_gap)
                         end
@@ -153,9 +209,9 @@ function get_support_set(X::Vector{T_x}, y::Vector{T_y}, i_extrema::Integer, A::
                     in_I_terminal[i_nbr] = true
                     push!(I_terminal, i_nbr)
                 end
-            elseif in_range && !monotonic && !in_I_terminal[i_prev] && i_prev != i_extrema
-                in_I_terminal[i_prev] = true
-                push!(I_terminal, i_prev)
+            elseif !in_I_terminal[i_parent] && i_parent != i_extrema
+                in_I_terminal[i_parent] = true
+                push!(I_terminal, i_parent)
             end
         end
 
