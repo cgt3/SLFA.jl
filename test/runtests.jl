@@ -1,6 +1,7 @@
 using SLFA
-using Test
+using SafeTestsets
 
-@testset "SLFA.jl" begin
+@safetestset "SLFA:RBF" begin
     # Write your tests here.
+    include("./RBF_test.jl")
 end
