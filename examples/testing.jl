@@ -11,8 +11,8 @@ using .SLFA
 # y = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
 
 X = Float64[1:10...]
-y = [3, 2, 1, 2, 3, 4, 5, 4, 3, 10 ]
-A, D = SLFA.get_nbr_matrix(X)
+y = [3, 2, 1, 2, 3, 4, 5, 4, 3, 2 ]
+A, D = SLFA.get_nbr_matrix_1D(X)
 
 i_extrema = 7
 support_set, I_terminal = get_support_set(X, y, i_extrema, A, D, SLFA.Maximum(), start_gap = 0.0)

@@ -75,6 +75,12 @@ $\newcommand{\btheta}{\bm{\theta}}$
     2. The extrema point and terminal points are included in the support set
     3. Terminal points are returned as a vector of integers
 
+6. Ordering of $\btheta$:
+    1. Center
+    2. Width(s)
+    3. Network weight
+    4. Distributed bias
+
 ## Computing Neighbors
 
 ### Duplicate Points and Neighbors
@@ -88,3 +94,22 @@ For the sake of the graph/nearest neighbor routines, it can be advantageous to l
 
 **Conclusion:**
 Given how the graph structure is used, we will use the convention of duplicate neighbors are neighbors, but duplicates of the host point are not neighbors.
+
+## User-Provided Functions and Parameters
+
+### Parameters
+
+- `N_max`
+- `is_monotonic`
+- `start_gap`
+- `duplicate_tol`
+- `k_extrema`
+- `T_RBF`
+- `conv_thresholds`
+
+### Functions
+- `conv_conditions`
+- `conv_enforcement`
+- `solver(theta0, X, res, A, D, N, T_phi)`
+- `score_extrema`
+- `get_initial_guess`

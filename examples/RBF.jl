@@ -23,7 +23,7 @@ rbf_aniso = Gaussian(x0_2D, w_2D)
 rbf_aniso([0,0])
 
 
-rbf_iso2 = Gaussian([2], w)
+rbf_iso2 = Gaussian([2.0], w)
 network = RBFN(0, [1, 2], [rbf_iso1, rbf_iso2])
 
-rbfs = Gaussian{Anisotropic{Aligned}, 2}[]
+rbfs = Gaussian{Anisotropic{Aligned}, Float64, 2}[]
