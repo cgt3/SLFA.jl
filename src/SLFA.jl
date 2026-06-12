@@ -169,7 +169,7 @@ function (network::RBFN)(x::Number)
     end
 end
 
-include("train_RBFN.jl")
+# include("train_RBFN.jl")
 
 
 end # module
