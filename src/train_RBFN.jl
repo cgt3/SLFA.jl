@@ -2,7 +2,7 @@
 const DEFAULT_N_1D = 250;
 const DEFAULT_START_GAP = 0.0;
 const DEFAULT_K_EXTREMA = 1;
-const DEFAULT_MAGN_REDUCTION = 1e-4;
+const DEFAULT_MAGN_REDUCTION = 1e-6;
 const MACHINE_EPS_FACTOR=1e-3;
 
 abstract type Extremum end;
@@ -36,34 +36,33 @@ function squaredTV(res, A, D)
     end
 end
 
-function f_lsq(X, res, A, D, N)
-    f_lsq = norm(res)
-    return norm(res)
-end
 
 function lsq_solver(theta0, X, res, A, D, N, T_phi::Type{<:BasisFunction})
-    @. rbf(X, theta) = theta[end-1]*eval_phi(X, theta, T_phi) - theta[end]
-    theta = curve_fit(rbf, X, res, theta0)
+    rbf(X, theta) = theta[end-1] .* [eval_phi(X[i,:], theta, T_phi) for i in axes(X,1)] .- theta0[end]
+    solver_results = curve_fit(rbf, X, res, theta0)
+    
+    theta = coef(solver_results)
+    theta[end] = theta0[end]
+    return theta
 end
 
-
-function rel_supr(X, res, i_extrema, support_set, ::Maximum, D)
+function rel_supr(X, res, i_extrema, support_set, I_terminal, ::Maximum, D)
     res_max = maximum(res)
     if res_max != res[i_extrema]
         return 0.0;
     end
 
     res_extrema = res[i_extrema]
-    max_next = maximum(res[~support_set])
+    max_next = maximum(res[map(!,support_set)])
 
     return res_extrema - max_next
 end
 
-function rel_supr(X, res, i_extrema, support_set, ::Minimum, D)
-    return rel_supr(X, -res, i_extrema, support_set, Maximum(), D)
+function rel_supr(X, res, i_extrema, support_set, I_terminal, ::Minimum, D)
+    return rel_supr(X, -res, i_extrema, support_set, I_terminal, Maximum(), D)
 end
 
-function max_dist_theta0(X, res, A, D, i_extrema, support_set, I_terminal, ::Gaussian{Isotropic, T_x, dim}) where {T_x<:Real, dim}
+function max_dist_theta0(X, res, A, D, i_extrema, support_set, I_terminal, extremum_type::Extremum, ::Type{Gaussian{Isotropic, T_x, dim}}) where {T_x<:Real, dim}
     diff = X[I_terminal, :] .- X[i_extrema,:]
     
     max_dist = abs(maximum(diff))
@@ -75,12 +74,14 @@ function max_dist_theta0(X, res, A, D, i_extrema, support_set, I_terminal, ::Gau
 
     w0 = 2.5 ./ max(max_dist, min_dist)
     c0 = X[i_extrema,:]
-    a0 = res[i_extrema]
-    b0 = mean(res[!support_set])
+    b0 = sum(res[map(!,support_set)]) / (length(support_set) - sum(support_set))
+    println("b0 = $b0")
+    a0 = res[i_extrema] - b0
 
     return [c0; w0; a0; b0]
 end
-function max_dist_theta0(X, res, A, D, i_extrema, support_set, I_terminal, ::Gaussian{Anisotropic{Aligned}, T_x, dim}) where {T_x<:Real, dim}
+
+function max_dist_theta0(X, res, A, D, i_extrema, support_set, I_terminal, extremum_type::Extremum, ::Type{Gaussian{Anisotropic{Aligned}, T_x, dim}}) where {T_x<:Real, dim}
     diff = X[I_terminal, :] .- X[i_extrema,:]
     
     max_dist = abs.( maximum.( [ diff[:,i] for i in axes(diff, 2)] ) )
@@ -91,10 +92,12 @@ function max_dist_theta0(X, res, A, D, i_extrema, support_set, I_terminal, ::Gau
     w0 = 2.5 ./ max.(max_dist, min_dist)
     c0 = X[i_extrema,:]
     a0 = res[i_extrema]
-    b0 = mean(res[!support_set])
+    b0 = sum(res[map(!,support_set)]) / (length(support_set) - sum(support_set))
 
     return [c0; w0; a0; b0]
 end
+
+bound_diff(res, res_validation, res_history, N) = maximum(res) - minimum(res)
 
 @inline function dist!(D::AbstractMatrix, i1::Integer, i2::Integer, X::Vector{T_x}) where T_x<:AbstractFloat
     if D[i1,i2] == 0 && D[i2,i1] == 0
@@ -125,11 +128,15 @@ end
 
 # Helper functions ====================================================================
 
-function get_nbr_matrix_1D(X; duplicate_tol=MACHINE_EPS_FACTOR*eps(eltype(X)))
-    n = size(X,1)
+function get_nbr_matrix1D(X; duplicate_tol=MACHINE_EPS_FACTOR*eps(eltype(X)))
+    if X isa Vector
+        n = length(X)
+    else
+        n = size(X,1)
+    end
 
     # Get elements in sorted order if in true 1D
-    if size(X,2) == 0
+    if X isa Vector == 0
         I_sorted = sortperm(X)
     else
         I_sorted = 1:n
@@ -309,15 +316,15 @@ function get_2k_extrema(X::Vector{T_x}, res::Vector{T_y}, A::AbstractMatrix, D::
         i_max_unprocessed = argmax(res[I_unprocessed])
         i_min_unprocessed = argmin(res[I_unprocessed])
 
-        I_all_unprocessed .= I_all[I_unprocessed]
+        I_all_unprocessed = I_all[I_unprocessed]
         i_max = I_all_unprocessed[i_max_unprocessed]
         i_min = I_all_unprocessed[i_min_unprocessed]
         if i_max == i_min
             return I_extrema, support_sets
         end
 
-        push!(I_extrema, i_max)
         push!(I_extrema, i_min)
+        push!(I_extrema, i_max)
 
         support_set_min, I_terminal_min = get_support_set(X, res, i_min, A, D, Minimum(), is_monotonic=is_monotonic, start_gap=start_gap)
         support_set_max, I_terminal_max = get_support_set(X, res, i_max, A, D, Maximum(), is_monotonic=is_monotonic, start_gap=start_gap)
@@ -332,13 +339,13 @@ function get_2k_extrema(X::Vector{T_x}, res::Vector{T_y}, A::AbstractMatrix, D::
 
         # Process terminal points
         I_terminal_orig = I_unprocessed[I_terminal_min]
-        I_unprocessed .= I_unprocessed .& !support_set_min
+        I_unprocessed .= I_unprocessed .& map(!,support_set_min)
         if length(I_terminal_min) > 0
             I_unprocessed[I_terminal_min] = I_terminal_orig
         end
 
         I_terminal_orig = I_unprocessed[I_terminal_max]
-        I_unprocessed .= I_unprocessed .& !support_set_max
+        I_unprocessed .= I_unprocessed .& map(!, support_set_max)
         if length(I_terminal_max) > 0
             I_unprocessed[I_terminal_max] = I_terminal_orig
         end
@@ -350,7 +357,7 @@ function get_2k_extrema(X::Vector{T_x}, res::Vector{T_y}, A::AbstractMatrix, D::
 end
 
 function get_best_extrema(X, res::Vector{T_y}, I_extrema::Vector{Int64}, support_sets, I_terminal_all::Vector{Vector{Int64}}, extrema_types::Vector{<:Extremum}, D::AbstractMatrix, score_func) where {T_y<:Number}
-    n = legnth(res)
+    n = length(res)
     scores = zeros(n)
 
     for k in eachindex(I_extrema)
@@ -358,7 +365,7 @@ function get_best_extrema(X, res::Vector{T_y}, I_extrema::Vector{Int64}, support
     end
 
     k_best = argmax(scores)
-    return I_extrema[k], support_sets[k], I_terminal_all[k], extrema_type[k]
+    return I_extrema[k_best], support_sets[k_best], I_terminal_all[k_best], extrema_types[k_best]
 end
 
 
@@ -384,19 +391,19 @@ end
 # SLFA in 1D
 function train_RBFN(X::Vector{T_x}, y::Vector{T_y};
         N_max=DEFAULT_N_1D::Integer,
-        T_phi=Gaussian{Isotropic, T_x, 1}<:BasisFunction,
+        T_phi=Gaussian{Isotropic, T_x, 1}::Type{<:BasisFunction},
         solver=lsq_solver::Function,
         score_extrema=rel_supr::Function,
-        get_initial_guess=get_initial_guess_1D::Function,
-        conv_conditions=[(res, res_validation)->maximum(res) - minimum(res)]::Vector{Function},
-        conv_thresholds=[DEFAULT_MAGN_REDUCTION*conv_conditions[1](y)]::Vector{T_metric},
+        get_initial_guess=max_dist_theta0::Function,
+        conv_conditions=bound_diff::Function,
+        conv_thresholds=[DEFAULT_MAGN_REDUCTION]::Vector{<:Real},
         conv_enforcement=any::Function,
-        is_monotonic=:strict,
+        is_monotonic=DEFAULT_MONOTONICITY,
         start_gap=DEFAULT_START_GAP::Real,
         k_extrema=DEFAULT_K_EXTREMA::Integer,
         duplicate_tol=MACHINE_EPS_FACTOR*eps(eltype(X)),
         X_validation=T_x[]::Vector{T_x},
-        y_validation=T_y[]::Vector{T_y},
+        y_validation=T_y[]::Vector{T_y}
     ) where {T_x<:AbstractFloat, T_y<:Number, T_metric<:Real}
 
     if length(X) != length(y)
@@ -404,12 +411,12 @@ function train_RBFN(X::Vector{T_x}, y::Vector{T_y};
     end
 
     # Compute neighbors
-    A, D = get_nbr_matrix_1D(X, duplicate_tol=duplicate_tol)
+    A, D = get_nbr_matrix1D(X, duplicate_tol=duplicate_tol)
 
     # Set up empty arrays
     num_params_RBF = size(T_phi)
     num_params = num_params_RBF + 2
-    Theta = zeros(T_x, N_max, num_params)
+    Theta  = zeros(T_x, N_max, num_params)
 
     # Train the network
     res = copy(y)
@@ -418,7 +425,7 @@ function train_RBFN(X::Vector{T_x}, y::Vector{T_y};
 
     res_error = conv_conditions(res, res_validation, [], N)
     res_history = [res_error]
-    while N < N_max && conv_enforcement(res_error .< conv_thresholds)
+    while N < N_max && conv_enforcement(res_error .> conv_thresholds)
         N += 1
 
         # Find the first 2*k extrema
@@ -428,23 +435,22 @@ function train_RBFN(X::Vector{T_x}, y::Vector{T_y};
         i_extrema, support_set, I_terminal, extremum_type = get_best_extrema(X, res, I_extrema, support_sets, I_terminal_all, extrema_types, D, score_extrema)
 
         # Construct an initial guess on the chosen support set
-        theta0 = get_initial_guess(X, res, i_extrema, support_set, I_terminal, extremum_type, T_phi)
+        theta0 = get_initial_guess(X, res, A, D, i_extrema, support_set, I_terminal, extremum_type, T_phi)
 
         # Solve for the RBF
         theta = solver(theta0, X, res, A, D, N, T_phi)
-
         Theta[N, :] .= theta
 
         # Update the residuals and residual history
-        res = res - theta[num_params-1]*map(x->eval_phi(x, theta, T_phi), X) - theta[num_params]
-        res_validation = res_validation - theta[num_params-1]*map(x->eval_phi(x, theta, T_phi), X_validation) - theta[num_params]
+        res .= res - theta[num_params-1]*map(x->eval_phi(x, theta, T_phi), X) .- theta[num_params]
+        res_validation .= res_validation - theta[num_params-1]*map(x->eval_phi(x, theta, T_phi), X_validation) .- theta[num_params]
 
         res_error = conv_conditions(res, res_validation, res_history, N)
         push!(res_history, res_error)
     end
 
 
-    return params, b, res_history, A, D
+    return Theta[1:N,:], res_history, A, D, T_phi
 end
 
 # # nD

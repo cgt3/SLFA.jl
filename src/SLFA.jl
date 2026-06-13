@@ -4,18 +4,24 @@ using LinearAlgebra
 using LsqFit
 using SparseArrays
 
+import Base.size
 
 # Abstract types
 export RBF_Orientation, Rotated, Aligned
 export RBF_Shape, Isotropic, Anisotropic
 export RBF_Sparsity, Sparse, Dense
-export RBF_Type, Gaussian
+export BasisFunction, RBF, Gaussian
+
+export Monotonicity, Strict, Nonstrict
+export Extremum, Maximum, Minimum
 
 # Data structures
 export RBF, RBFN
 
 # Functions
-export get_nbr_matrix, get_support_set
+export squaredTV, lsq_solver, rel_supr, max_dist_theta0, bound_diff, dist!
+export get_nbr_matrix1D, get_support_set, get_2k_extrema, get_best_extrema
+export train_RBFN, eval_phi
 
 # Abstract data types for classifying/parameterizing RBFs
 abstract type RBF_Orientation end
@@ -118,12 +124,12 @@ function (rbf::Gaussian{Anisotropic{Aligned}, T_x, dim})(x) where {dim, T_x<:Rea
 end
 
 # Functions for evaluating arrays of parameters as RBFs
-function eval_phi(x, theta::Vector{T_x}, ::Type{Gaussian{Isotropic, T_x, dim}}) where {dim, T_x<:Real}
-    return exp( -sum( (theta[dim+1] .*(x - theta[1:dim])) .^ 2 ) )
+function eval_phi(x, theta::Vector{T_theta}, ::Type{Gaussian{Isotropic, T_x, dim}}) where {dim, T_theta<:Number, T_x<:Real}
+    return exp( -sum( (theta[dim+1] .*(x .- theta[1:dim])) .^ 2 ) )
 end
 
-function eval_phi(x, theta::Vector{T_x}, ::Type{Gaussian{Anisotropic{Aligned}, T_x, dim}}) where {dim, T_x<:Real}
-    return exp( -sum( (theta[(dim+1):2*dim] .*(x - theta[1:dim])) .^ 2 ) )
+function eval_phi(x, theta::Vector{T_theta}, ::Type{Gaussian{Anisotropic{Aligned}, T_x, dim}}) where {dim, T_theta<:Number, T_x<:Real}
+    return exp( -sum( (theta[(dim+1):2*dim] .*(x .- theta[1:dim])) .^ 2 ) )
 end
 
 # Functions for getting the number of parameters 
@@ -151,12 +157,12 @@ struct RBFN{T_phi, T_y}
     end
 end
 
-function RBFN(Theta::Vector{T_x}, T_RBF::Type{<:BasisFunction}) where T_x<:Real
+function RBFN(Theta::Matrix{T_theta}, T_phi::Type{<:BasisFunction}) where T_theta<:Number
     num_params = size(Theta,2)
     a = Theta[:, num_params-1]
     a0 = sum(Theta[:, num_params])
 
-    phi_all = [ T_RBF(Theta[i,:]) for i in axes(Theta,1) ]
+    phi_all = [ T_phi(Theta[i,:]) for i in axes(Theta,1) ]
     return RBFN(a0, a, phi_all)
 end
 
@@ -165,8 +171,10 @@ function (network::RBFN)(x::Number)
     result = network.a0
     
     for k = 1:network.N
-        result += a[k]*network.rbf[k](x)
+        result += network.a[k]*network.phi[k](x)
     end
+
+    return result
 end
 
 include("train_RBFN.jl")
