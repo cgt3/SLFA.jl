@@ -38,11 +38,10 @@ end
 
 
 function lsq_solver(theta0, X, res, A, D, N, T_phi::Type{<:BasisFunction})
-    rbf(X, theta) = theta[end-1] .* [eval_phi(X[i,:], theta, T_phi) for i in axes(X,1)] .- theta0[end]
+    rbf(X, theta) = theta[end-1] .* [eval_phi(X[i,:], theta, T_phi) for i in axes(X,1)] .+ theta[end]
     solver_results = curve_fit(rbf, X, res, theta0)
     
     theta = coef(solver_results)
-    theta[end] = theta0[end]
     return theta
 end
 
