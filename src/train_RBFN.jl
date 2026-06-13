@@ -34,6 +34,8 @@ function squaredTV(res, A, D)
         TV_ij = ( res[i] - res[j] ) / D[i,j]
         f_TV += TV_ij * TV_ij
     end
+
+    return f_TV
 end
 
 
@@ -74,7 +76,6 @@ function max_dist_theta0(X, res, A, D, i_extrema, support_set, I_terminal, extre
     w0 = 2.5 ./ max(max_dist, min_dist)
     c0 = X[i_extrema,:]
     b0 = sum(res[map(!,support_set)]) / (length(support_set) - sum(support_set))
-    println("b0 = $b0")
     a0 = res[i_extrema] - b0
 
     return [c0; w0; a0; b0]
@@ -449,7 +450,7 @@ function train_RBFN(X::Vector{T_x}, y::Vector{T_y};
     end
 
 
-    return Theta[1:N,:], res_history, A, D, T_phi
+    return Theta[1:N,:], res_history, A, D, N, T_phi
 end
 
 # # nD
