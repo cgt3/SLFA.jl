@@ -2,6 +2,7 @@ module SLFA
 
 using LinearAlgebra
 using LsqFit
+using Optim
 using SparseArrays
 
 import Base.size
@@ -19,7 +20,7 @@ export Extremum, Maximum, Minimum
 export RBF, RBFN
 
 # Functions
-export squaredTV, lsq_solver, rel_supr, max_dist_theta0, bound_diff, dist!
+export initial_guess, rel_supr, max_dist_theta0, dist!
 export get_nbr_matrix1D, get_support_set, get_2k_extrema, get_best_extrema
 export train_RBFN, eval_phi
 

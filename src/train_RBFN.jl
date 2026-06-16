@@ -24,27 +24,10 @@ struct Nonstrict <: Monotonicity end;
 
 const DEFAULT_MONOTONICITY=Strict();
 
-function squaredTV(res, A, D)
-    f_TV = zero(eltype(res))
+include("./solvers.jl")
 
-    I_nz, J_nz, _ = findnz(A)
-    for k in eachindex(I_nz)
-        i = I_nz[k]
-        j = J_nz[k]
-        TV_ij = ( res[i] - res[j] ) / D[i,j]
-        f_TV += TV_ij * TV_ij
-    end
-
-    return f_TV
-end
-
-
-function lsq_solver(theta0, X, res, A, D, N, T_phi::Type{<:BasisFunction})
-    rbf(X, theta) = theta[end-1] .* [eval_phi(X[i,:], theta, T_phi) for i in axes(X,1)] .+ theta[end]
-    solver_results = curve_fit(rbf, X, res, theta0)
-    
-    theta = coef(solver_results)
-    return theta
+function initial_guess(theta0, X, res, A, D, N, T_phi::Type{<:BasisFunction})
+    return theta0
 end
 
 function rel_supr(X, res, i_extrema, support_set, I_terminal, ::Maximum, D)
@@ -54,7 +37,12 @@ function rel_supr(X, res, i_extrema, support_set, I_terminal, ::Maximum, D)
     end
 
     res_extrema = res[i_extrema]
-    max_next = maximum(res[map(!,support_set)])
+    exterior_pts = map(!,support_set)
+    if sum(exterior_pts) != 0
+        max_next = maximum(res[exterior_pts])
+    else
+        max_next = minimum(res)
+    end
 
     return res_extrema - max_next
 end
@@ -75,7 +63,15 @@ function max_dist_theta0(X, res, A, D, i_extrema, support_set, I_terminal, extre
 
     w0 = 2.5 ./ max(max_dist, min_dist)
     c0 = X[i_extrema,:]
-    b0 = sum(res[map(!,support_set)]) / (length(support_set) - sum(support_set))
+    if length(support_set) != sum(support_set)
+        b0 = sum(res[map(!,support_set)]) / (length(support_set) - sum(support_set))
+    else
+        if extremum_type isa Maximum
+            b0 = minimum(res)
+        else
+            b0 = maximum(res)
+        end
+    end
     a0 = res[i_extrema] - b0
 
     return [c0; w0; a0; b0]
@@ -91,13 +87,20 @@ function max_dist_theta0(X, res, A, D, i_extrema, support_set, I_terminal, extre
 
     w0 = 2.5 ./ max.(max_dist, min_dist)
     c0 = X[i_extrema,:]
+    if length(support_set) != sum(supoprt_set)
+        b0 = sum(res[map(!,support_set)]) / (length(support_set) - sum(support_set))
+    else
+        if extremum_type isa Maximum
+            b0 = minimum(res)
+        else
+            b0 = maximum(res)
+        end
+    end
     a0 = res[i_extrema]
-    b0 = sum(res[map(!,support_set)]) / (length(support_set) - sum(support_set))
 
     return [c0; w0; a0; b0]
 end
 
-bound_diff(res, res_validation, res_history, N) = maximum(res) - minimum(res)
 
 @inline function dist!(D::AbstractMatrix, i1::Integer, i2::Integer, X::Vector{T_x}) where T_x<:AbstractFloat
     if D[i1,i2] == 0 && D[i2,i1] == 0
@@ -304,11 +307,20 @@ function get_2k_extrema(X::Vector{T_x}, res::Vector{T_y}, A::AbstractMatrix, D::
     ) where {T_x<:AbstractFloat, T_y<:Number}
     
     n = length(res)
+
+    # Only consider points who are greater than (maxima) or less than (minima) at leastone of their neighbors
+    I_unprocessed = zeros(Bool, n)
+    for i in eachindex(res)
+        if any(res[i] .> res[A[:,i]]) || any(res[i] .< res[A[:,i]])
+            I_unprocessed[i] = true
+        end
+    end
+
+
     extrema_types = Extremum[]
     I_extrema = Int64[]
     support_sets = Vector{Bool}[]
     I_terminal_all = Vector{Int64}[]
-    I_unprocessed = ones(Bool, n)
     I_all = [1:n...]
 
     k = 1
@@ -392,7 +404,7 @@ end
 function train_RBFN(X::Vector{T_x}, y::Vector{T_y};
         N_max=DEFAULT_N_1D::Integer,
         T_phi=Gaussian{Isotropic, T_x, 1}::Type{<:BasisFunction},
-        solver=lsq_solver::Function,
+        solver=initial_guess::Function,
         score_extrema=rel_supr::Function,
         get_initial_guess=max_dist_theta0::Function,
         conv_conditions=bound_diff::Function,
@@ -403,7 +415,8 @@ function train_RBFN(X::Vector{T_x}, y::Vector{T_y};
         k_extrema=DEFAULT_K_EXTREMA::Integer,
         duplicate_tol=MACHINE_EPS_FACTOR*eps(eltype(X)),
         X_validation=T_x[]::Vector{T_x},
-        y_validation=T_y[]::Vector{T_y}
+        y_validation=T_y[]::Vector{T_y},
+        print_iter=false::Bool
     ) where {T_x<:AbstractFloat, T_y<:Number, T_metric<:Real}
 
     if length(X) != length(y)
@@ -416,6 +429,7 @@ function train_RBFN(X::Vector{T_x}, y::Vector{T_y};
     # Set up empty arrays
     num_params_RBF = size(T_phi)
     num_params = num_params_RBF + 2
+    Theta0  = zeros(T_x, N_max, num_params)
     Theta  = zeros(T_x, N_max, num_params)
 
     # Train the network
@@ -427,7 +441,9 @@ function train_RBFN(X::Vector{T_x}, y::Vector{T_y};
     res_history = [res_error]
     while N < N_max && conv_enforcement(res_error .> conv_thresholds)
         N += 1
-
+        if print_iter
+            println("Iteration N = $N")
+        end
         # Find the first 2*k extrema
         I_extrema, support_sets, I_terminal_all, extrema_types = get_2k_extrema(X, res, A, D, k_max=k_extrema, is_monotonic=is_monotonic, start_gap=start_gap)
 
@@ -436,6 +452,7 @@ function train_RBFN(X::Vector{T_x}, y::Vector{T_y};
 
         # Construct an initial guess on the chosen support set
         theta0 = get_initial_guess(X, res, A, D, i_extrema, support_set, I_terminal, extremum_type, T_phi)
+        Theta0[N,:] .= theta0
 
         # Solve for the RBF
         theta = solver(theta0, X, res, A, D, N, T_phi)
@@ -450,7 +467,7 @@ function train_RBFN(X::Vector{T_x}, y::Vector{T_y};
     end
 
 
-    return Theta[1:N,:], res_history, A, D, N, T_phi
+    return Theta[1:N,:], res_history, A, D, N, T_phi, Theta0[1:N,:]
 end
 
 # # nD
