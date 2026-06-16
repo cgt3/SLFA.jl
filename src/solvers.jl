@@ -28,6 +28,10 @@ end
 
 
 # Solvers
+function initial_guess(theta0, X, res, A, D, N, T_phi::Type{<:BasisFunction})
+    return theta0
+end
+
 function lsq_solver(theta0, X, res, A, D, N, T_phi::Type{<:BasisFunction})
     rbf(X, theta) = theta[end-1] .* [eval_phi(X[i,:], theta, T_phi) for i in axes(X,1)] .+ theta[end]
     solver_results = curve_fit(rbf, X, res, theta0)
@@ -38,9 +42,6 @@ end
 
 
 function lsq_TV_solver(omega_TV, theta0, X, res, A, D, N, T_phi::Type{<:BasisFunction})
-    # return theta0
-    # TODO: what about normalization relative to the original residual? (as opposed to the initial guess)
-
     res_new(theta) = res - theta[end-1] .* [eval_phi(X[i,:], theta, T_phi) for i in axes(X,1)] .- theta[end]
     f_lsq_orig = norm(res_new(theta0))
     TV_orig = squaredTV(res_new(theta0), A, D)
@@ -71,4 +72,3 @@ function lsq_TV_solver(omega_TV, theta0, X, res, A, D, N, T_phi::Type{<:BasisFun
 
     return theta
 end
-

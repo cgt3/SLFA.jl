@@ -26,9 +26,6 @@ const DEFAULT_MONOTONICITY=Strict();
 
 include("./solvers.jl")
 
-function initial_guess(theta0, X, res, A, D, N, T_phi::Type{<:BasisFunction})
-    return theta0
-end
 
 function rel_supr(X, res, i_extrema, support_set, I_terminal, ::Maximum, D)
     res_max = maximum(res)
@@ -251,7 +248,7 @@ function get_support_set(X::Vector{T_x}, res::Vector{T_y}, i_extrema::Integer, A
     I_terminal = Int64[]
     in_I_terminal = zeros(Bool, length(res))
     i = 1
-    while i <= length(I_next) # Note: the size of I_next can change as the for-loop iterates
+    while i <= length(I_next) # Note: the size of I_next can change as the loop iterates
         i_nbr  = I_next[i]
         i_prev = I_prev[i]
         i_parent = I_parent[i]
@@ -275,9 +272,9 @@ function get_support_set(X::Vector{T_x}, res::Vector{T_y}, i_extrema::Integer, A
                         else
                             # TODO: For nD case, the parent's lineage may not be the best way to find a comparison 
                             #       point due to the drift/the spiral effect
-                            i_prev_start_gap = i_prev
+                            i_prev_start_gap = i_parent
                             while i_prev_start_gap != i_extrema && dist!(D, i_new, i_prev_start_gap, X) <= start_gap
-                                i_prev_start_gap = I_prev[I2I_prev[i_prev_start_gap]]
+                                i_prev_start_gap = I_parent[I2I_prev[i_prev_start_gap]]
                             end
                             push!(I_prev, i_prev_start_gap)
                         end
@@ -308,7 +305,7 @@ function get_2k_extrema(X::Vector{T_x}, res::Vector{T_y}, A::AbstractMatrix, D::
     
     n = length(res)
 
-    # Only consider points who are greater than (maxima) or less than (minima) at leastone of their neighbors
+    # Only consider points who are greater than (maxima) or less than (minima) at least one of their neighbors
     I_unprocessed = zeros(Bool, n)
     for i in eachindex(res)
         if any(res[i] .> res[A[:,i]]) || any(res[i] .< res[A[:,i]])
@@ -404,7 +401,7 @@ end
 function train_RBFN(X::Vector{T_x}, y::Vector{T_y};
         N_max=DEFAULT_N_1D::Integer,
         T_phi=Gaussian{Isotropic, T_x, 1}::Type{<:BasisFunction},
-        solver=initial_guess::Function,
+        solver=lsq_solver::Function,
         score_extrema=rel_supr::Function,
         get_initial_guess=max_dist_theta0::Function,
         conv_conditions=bound_diff::Function,
