@@ -20,9 +20,8 @@ export Extremum, Maximum, Minimum
 export RBF, RBFN
 
 # Functions
-export initial_guess, rel_supr, max_dist_theta0, dist!
-export get_nbr_matrix1D, get_support_set, get_2k_extrema, get_best_extrema
-export train_RBFN, eval_phi
+export dist!, get_nbr_matrix1D, get_support_set, get_2k_extrema, get_best_extrema, get_RBFN_matrix_system
+export eval_phi, train_RBFN, train_RBFN_quasi1D
 
 # Abstract data types for classifying/parameterizing RBFs
 abstract type RBF_Orientation end
@@ -117,11 +116,11 @@ end
 
 # Functors for evaluating individual RBFs
 function (rbf::Gaussian{Isotropic, T_x, dim})(x) where {dim, T_x<:Real}
-    return exp( -sum( (rbf.w .*(x - rbf.x0)) .^ 2 ) )
+    return exp( -sum( (rbf.w .* (x - rbf.x0)) .^ 2 ) )
 end
 
 function (rbf::Gaussian{Anisotropic{Aligned}, T_x, dim})(x) where {dim, T_x<:Real}
-    return exp( -sum( (rbf.w .*(x - rbf.x0)) .^ 2 ) ) 
+    return exp( -sum( (rbf.w .* (x .- rbf.x0)) .^ 2 ) ) 
 end
 
 # Functions for evaluating arrays of parameters as RBFs
@@ -169,6 +168,16 @@ end
 
 # Functor for RBFNs
 function (network::RBFN)(x::Number)
+    result = network.a0
+    
+    for k = 1:network.N
+        result += network.a[k]*network.phi[k](x)
+    end
+
+    return result
+end
+
+function (network::RBFN)(x::Vector{T_x}) where T_x<:Real
     result = network.a0
     
     for k = 1:network.N
