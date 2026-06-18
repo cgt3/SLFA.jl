@@ -128,19 +128,17 @@ end
 
 # Helper functions ====================================================================
 
-function get_nbr_matrix1D(X; duplicate_tol=MACHINE_EPS_FACTOR*eps(eltype(X)))
+function get_nbr_matrix1D(X::Union{Vector, Matrix}; duplicate_tol=MACHINE_EPS_FACTOR*eps(eltype(X)))
+    
+    # Get elements in sorted order if in true 1D
     if X isa Vector
         n = length(X)
-    else
-        n = size(X,1)
-    end
-
-    # Get elements in sorted order if in true 1D
-    if X isa Vector == 0
         I_sorted = sortperm(X)
     else
+        n = size(X,1)
         I_sorted = 1:n
     end
+
 
     # Allocate memory for the neighbor matrix
     A = spzeros(Bool, n, n)
@@ -369,12 +367,17 @@ function get_best_extrema(X, res::Vector{T_y}, I_extrema::Vector{Int64}, support
     n = length(res)
     scores = zeros(n)
 
-    for k in eachindex(I_extrema)
-        scores[k] = score_func(X, res, I_extrema[k], support_sets[k], I_terminal_all[k], extrema_types[k], D)
+    k_best = 1
+    max_score = score_func(X, res, I_extrema[k], support_sets[k], I_terminal_all[k], extrema_types[k], D)
+    for k in 2:length(I_extrema)
+        scores_k = score_func(X, res, I_extrema[k], support_sets[k], I_terminal_all[k], extrema_types[k], D)
+        if score_k > max_score
+            max_score = score_k
+            k_best = k
+        end
     end
 
-    k_best = argmax(scores)
-    return I_extrema[k_best], support_sets[k_best], I_terminal_all[k_best], extrema_types[k_best]
+    return I_extrema[k_best], support_sets[k_best], I_terminal_all[k_best], extrema_types[k_best], max_score
 end
 
 
@@ -406,7 +409,7 @@ function train_RBFN(X::Vector{T_x}, y::Vector{T_y};
         get_initial_guess=max_dist_theta0::Function,
         conv_conditions=bound_diff::Function,
         conv_thresholds=[DEFAULT_MAGN_REDUCTION]::Vector{<:Real},
-        conv_enforcement=any::Function,
+        conv_enforcement=all::Function,
         is_monotonic=DEFAULT_MONOTONICITY,
         start_gap=DEFAULT_START_GAP::Real,
         k_extrema=DEFAULT_K_EXTREMA::Integer,
@@ -445,7 +448,7 @@ function train_RBFN(X::Vector{T_x}, y::Vector{T_y};
         I_extrema, support_sets, I_terminal_all, extrema_types = get_2k_extrema(X, res, A, D, k_max=k_extrema, is_monotonic=is_monotonic, start_gap=start_gap)
 
         # Choose the highest scoring extrema
-        i_extrema, support_set, I_terminal, extremum_type = get_best_extrema(X, res, I_extrema, support_sets, I_terminal_all, extrema_types, D, score_extrema)
+        i_extrema, support_set, I_terminal, extremum_type, _ = get_best_extrema(X, res, I_extrema, support_sets, I_terminal_all, extrema_types, D, score_extrema)
 
         # Construct an initial guess on the chosen support set
         theta0 = get_initial_guess(X, res, A, D, i_extrema, support_set, I_terminal, extremum_type, T_phi)
@@ -467,6 +470,119 @@ function train_RBFN(X::Vector{T_x}, y::Vector{T_y};
     return Theta[1:N,:], res_history, A, D, N, T_phi, Theta0[1:N,:]
 end
 
+# Quasi-1D
+function train_RBFN_quasi1D(X_all::Vector{Matrix{T_x}}, y_all::Vector{Vector{T_y}}; 
+        N_max=DEFAULT_N_1D::Integer,
+        T_phi=Gaussian{Isotropic, T_x, 1}::Type{<:BasisFunction},
+        solver=lsq_solver::Function,
+        score_extrema=rel_supr::Function,
+        get_initial_guess=max_dist_theta0::Function,
+        conv_conditions=bound_diff::Function,
+        conv_thresholds=[DEFAULT_MAGN_REDUCTION]::Vector{<:Real},
+        conv_enforcement=all::Function,
+        is_monotonic=DEFAULT_MONOTONICITY,
+        start_gap=DEFAULT_START_GAP::Real,
+        k_extrema=DEFAULT_K_EXTREMA::Integer,
+        duplicate_tol=MACHINE_EPS_FACTOR*eps(eltype(X)),
+        X_validation=T_x[]::Vector{T_x},
+        y_validation=T_y[]::Vector{T_y},
+        print_iter=false::Bool
+    ) where {T_x<:AbstractFloat, T_y<:Number, T_metric<:Real}
+
+    # Check inputs
+    if length(X_all) != length(y_all)
+        throw("SLFA.train_RBFN: Length of X_all does not match length of y_all")
+    end
+
+    for k in eachindex(X_all)
+        if size(X_all[k],1) != length(y_all[k])
+            throw("SLFA.train_RBFN: Number of data points and residual values do not match.")
+        end
+    end
+
+    num_runs = length(y_all)
+
+    res_flat = vcat(res_all...)
+    X_flat = vcat(X_all...)
+    
+    # Compute neighbors for each dataset
+    A_all = SparseMatrixCSC{Bool, Int64}[]
+    D_all = SparseMatrixCSC{T_x, Int64}[]
+    for r in eachindex(X_all)
+        A_r, D_r = get_nbr_matrix1D(X_all[r], duplicate_tol=duplicate_tol)
+        push!(A_all, A_r)
+        push!(D_all, D_r)
+    end
+    
+    # TODO: also compute the nD A/D matrices once the nD routines are implemented
+
+    # Set up empty arrays
+    num_params_RBF = size(T_phi)
+    num_params = num_params_RBF + 2
+    Theta0  = zeros(T_x, N_max, num_params)
+    Theta  = zeros(T_x, N_max, num_params)
+
+    # Train the network
+    res_all = [ copy(y_all[r]) for r in eachindex(y_all) ]
+    res_validation = copy(y_validation)
+    N = 0
+
+    res_error = conv_conditions(res_all, res_validation, [], N)
+    res_history = [res_error]
+    while N < N_max && conv_enforcement(res_error .> conv_thresholds)
+        N += 1
+        if print_iter
+            println("Iteration N = $N")
+        end
+
+        # Find the best extrema
+        max_score = -Inf
+        r_best = -1
+        i_extrema_best = -1
+        support_set_best = Bool[]
+        I_terminal_best = Int64[]
+        extremum_type_best = Maximum()
+        for k in eachindex(res_all)
+            # Find the first 2*k_extrema extrema for each run
+            I_extrema_r, support_sets_r, I_terminal_r_all, extrema_types_r = get_2k_extrema(X_all[r], res_all[r], A_all[r], D_all[r], k_max=k_extrema, is_monotonic=is_monotonic, start_gap=start_gap)
+
+            # Choose the highest scoring extrema in this run
+            i_extrema_r, support_set_r, I_terminal_r, extremum_type_r, score_r = get_best_extrema(X_all[r], res_all[r], I_extrema_r, support_sets_r, I_terminal_r_all, extrema_types_r, D_all[r], score_extrema)
+            
+            if score_r > max_score
+                r_best = r
+                i_extrema_best = i_extrema_r
+                support_set_best = support_set_r
+                I_terminal_best = I_terminal_r
+                extremum_type_best = extremum_type_r
+                max_score = score_r
+            end
+        end
+
+        # Construct an initial guess on the chosen support set
+        # TODO: change to the nD get_initial_guess once it is implemented
+        theta0 = get_initial_guess(X_all[r_best], res_all[r_best], A_all[r_best], D_all[r_best], i_extrema_best, support_set_best, I_terminal_best, extremum_type_best, T_phi)
+        Theta0[N,:] .= theta0
+
+        # Solve for the RBF
+        theta = solver(theta0, X_flat, res_flat, A_all, D_all, N, T_phi)
+        Theta[N, :] .= theta
+
+        # Update the residuals and residual history
+        for r in eachindex(X_all)
+            res_all[r] .= res_all[r] - theta[num_params-1]*map(x->eval_phi(x, theta, T_phi), X_all[r]) .- theta[num_params]
+        end
+        res_flat .= vcat(res_all...)
+        res_validation .= res_validation - theta[num_params-1]*map(x->eval_phi(x, theta, T_phi), X_validation) .- theta[num_params]
+
+        res_error = conv_conditions(res_all, res_validation, res_history, N)
+        push!(res_history, res_error)
+    end
+
+
+    return Theta[1:N,:], res_history, A, D, N, T_phi, Theta0[1:N,:]
+end
+
 # # nD
 # function train_RBFN(X::Matrix{T_x}, y::Vector{T_y}; ) where {T_x<:AbstractFloat, T_y<:Number}
 #     if size(X,1) != length(y)
@@ -474,15 +590,3 @@ end
 #     end
 # end
 
-# # Quasi-1D
-# function train_RBFN_quasi1D(X_all::Vector{Matrix{T_x}}, y_all::Vector{Vector{T_y}}; ) where {T_x<:AbstractFloat, T_y<:Number}
-#     if length(X_all) != length(y_all)
-#         throw("SLFA.train_RBFN: Length of X_all does not match length of y_all")
-#     end
-
-#     for k in eachindex(X_all)
-#         if size(X_all[k],1) != length(y_all[k])
-#             throw("SLFA.train_RBFN: Number of data points and residual values do not match.")
-#         end
-#     end
-# end
