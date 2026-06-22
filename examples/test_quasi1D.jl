@@ -27,10 +27,10 @@ y = y_true[3:end]
 
 X_all = [X]
 y_all = [y]
-error_threshold = [0.0, 0.0, 0.0]
+error_threshold = [0.0, 1e-4, 0.0]
 
 # Set common arguments
-N_max = 25
+N_max = 100
 start_gap = 0.0
 print_iter=false
 monotonicity=Strict()
@@ -52,9 +52,10 @@ rbfn_LSQ = RBFN(Theta_LSQ, T_phi)
 y_LSQ = [ rbfn_LSQ(X[i,:]) for i in eachindex(y) ]
 
 
-y_rbfn = y_IG
-rbfn_label = "Initial Guess, N=$N_IG"
-file_name = "./figures/quasi1D_sine_clean_IG.png"
+## Plot the solutions
+# y_rbfn = y_IG
+# rbfn_label = "Initial Guess, N=$N_IG"
+# file_name = "./figures/quasi1D_sine_clean_IG.png"
 
 y_rbfn = y_LSQ
 rbfn_label = "LSQ, N=$N_LSQ"
@@ -85,12 +86,11 @@ display(fig1)
 
 png(file_name)
 
-# Plot convergence history
 
-# Plot the residual histories
+## Plot the residual histories
 lw = 6
-ylim_RMSE = (1e-3, 1.0)
-ylim_supr = (1e-3, 1.0)
+ylim_RMSE = (1e-5, 1.0)
+ylim_supr = (1e-5, 1.0)
 
 # Plot the convergence history for the initial_guess solver
 fig2 = plot(getindex.(res_history_IG, 1), 
@@ -141,19 +141,43 @@ plot!(fig2, getindex.(res_history_LSQ, 1), linewidth=lw, label="LSQ (LM)", subpl
 plot!(fig2, getindex.(res_history_LSQ, 2), linewidth=lw, label="LSQ (LM)", subplot=2)
 display(fig2)
 
-png("./figures/quasi1D_convHist_sine_clean.png")
+png("./figures/quasi1D_convHist_sine_clean_N100.png")
 
 
+## Test prediction
+rbfn = rbfn_LSQ
+y_prediction = similar(y)
+y_delay2 = y_true[1]
+y_delay1 = y_true[2]
 
-# ylim = (-1.25, 1.25)
-# res = copy(y)
-# for N in 1:10
-#     global res
-#     y_phi = Theta[N, end-1] .* [eval_phi(X[i,:], Theta[N,:], T_phi) for i in axes(X,1)] .+ Theta[N, end]
-#     p = plot(res, size=(1800, 700), ylim=ylim, label="Residual, N=$N", layout=(1,2), subplot=1)
-#     plot!(y_phi, label="RBF (Final), N=$N", subplot=1)
-    
-#     plot!(res-y_phi, ylim=ylim, leg=false, subplot=2)
-#     display(p)
-#     res = res - y_phi
-# end
+for i in eachindex(y_prediction)
+    y_prediction[i] = rbfn([y_delay2, y_delay1])
+    y_delay2 = y_delay1
+    y_delay1 = y_prediction[i]
+end
+
+# Plot the recurrent prediction vs true solution
+lw = 5
+ylim = (-1.5, 1.75)
+fig3 = plot(y_prediction, label="Prediction (LSQ, N=$N_LSQ)", 
+    linewidth=lw,
+    size=(1800, 800),
+    xlabel="i, Data Sample Index", 
+    ylabel="y", 
+    # xlim=(0,100),
+    ylim=ylim,
+    leg=:topright,
+    gridalpha=0.2,
+    legendfontsize=20,
+    labelfontsize=24,
+    left_margin=10mm,
+    right_margin=10mm,
+    bottom_margin=15mm,
+    tickfont=18,
+    color=:blue
+)
+plot!(y, label="True Solution", linewidth=2, color=:red)
+# plot!(res[1], label="Final Residual", linewidth=2, color=:black)
+display(fig3)
+
+png("./figures/quasi1D_sine_clean_prediction_N100.png")

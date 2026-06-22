@@ -135,32 +135,43 @@ end
 
 function lsq_TV_solver(omega_TV, theta0, X, res, A, D, N, T_phi::Type{<:BasisFunction})
     res_new(theta) = res - theta[end-1] .* [eval_phi(X[i,:], theta, T_phi) for i in axes(X,1)] .- theta[end]
-    f_lsq_orig = norm(res_new(theta0))
-    TV_orig = squaredTV(res_new(theta0), A, D)
 
-    # Normalize/scale each term by their original value
-    f_lsq(theta) = norm(res_new(theta)) / f_lsq_orig
-    f_TV(theta) = squaredTV(res_new(theta), A, D) / TV_orig
+    if omega_TV > 0.0
+        f_lsq_orig = norm(res_new(theta0))
+        TV_orig = squaredTV(res_new(theta0), A, D)
 
-    # Try constant omega
-    omega = [1, omega_TV]
-    f_obj(theta) = omega[1]*f_lsq(theta) + omega[2]*f_TV(theta) 
+        # Normalize/scale each term by their original value
+        f_lsq(theta) = norm(res_new(theta)) / f_lsq_orig
+        f_TV(theta) = squaredTV(res_new(theta), A, D) / TV_orig
 
-    Optim.Options(x_abstol=1e-4, f_abstol=1e-4, iterations=200*length(theta0))
-    result = optimize(f_obj, theta0, NelderMead())
-    
-    theta = Optim.minimizer(result)
+        # Try constant omega
+        omega = [1, omega_TV]
+        f_lsq_TV(theta) = omega[1]*f_lsq(theta) + omega[2]*f_TV(theta) 
 
-    lsq_initial = f_lsq(theta0)
-    lsq_final = f_lsq(theta)
-    if lsq_final > lsq_initial
-        theta_lsq = lsq_solver(theta0, X, res, A, D, N, T_phi)
-        if squaredTV(res_new(theta_lsq), A, D) < TV_orig
-            return theta_lsq
-        else
-            return theta0
+        Optim.Options(x_abstol=1e-4, f_abstol=1e-4, iterations=200*length(theta0))
+        result = optimize(f_lsq_TV, theta0, NelderMead())
+        
+        theta = Optim.minimizer(result)
+
+        lsq_initial = f_lsq(theta0)
+        lsq_final = f_lsq(theta)
+        if lsq_final > lsq_initial
+            theta_lsq = lsq_solver(theta0, X, res, A, D, N, T_phi)
+            if squaredTV(res_new(theta_lsq), A, D) < TV_orig
+                return theta_lsq
+            else
+                return theta0
+            end
         end
+
+        return theta
+    else
+        f_obj(theta) = norm(res_new(theta))
+        Optim.Options(x_abstol=1e-4, f_abstol=1e-4, iterations=200*length(theta0))
+        result = optimize(f_obj, theta0, NelderMead())
+        
+        theta = Optim.minimizer(result)
+        return theta
     end
 
-    return theta
 end
