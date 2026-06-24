@@ -1,28 +1,31 @@
 using SLFA
 
-@testset "rel_supr(X, res, i_extrema, support_set, I_terminal, ::Maximum, D): Relative support set test on maximums" begin
-    # Test when the i_extrema is not at the residual maximum
+@testset "dist!(D::AbstractMatrix, i1::Integer, i2::Integer, X::Vector{T_x}): D matrix modifier for 1D" begin
+    D = zeros(3,3)
     X = [0.0, 0.5, 1.0]
-    res = [0.0, 1.0, 0.5]
-    i_extrema = 3
-    support_set = [true, true, true]
-    I_terminal = [1, 3]
-    D = 1
-    @test rel_supr(X, res, i_extrema, support_set, I_terminal, Maximum(), D) == 0
-    
-    # Test when the support set is a subset of X 
-    using SLFA
-    X = [0.0, 0.5, 1.0, 1.5, 2.0]
-    res = [0.0, 1.0, 0.5, 0.8, 0.0]
-    i_extrema = 2 # Cannot be a vector
-    support_set = [true, true, true, false, false]
+    # Check no value assigned
+    dist!(D,1,2,X)
+    @test isapprox(dist!(D,1,1,X), 0, atol=1e-13)
+    # Check only actual position assigned, not inverse
+    D[1,3] = 5
+    @test dist!(D,1,3,X) == 5
+    # Check only inverse assigned, not requested position
+    D[2,3] = 3
+    dist!(D,3,2,X)
+    @test D[3,2] == 3        
+end
 
-    @test isapprox(rel_supr(X, res, i_extrema, support_set, I_terminal, Maximum(), D), .20, atol=1e-13)
-
-    # Test when the support set is the full X
-    X = [0.0, 0.5, 1.0, 1.5, 2.0]
-    res = [0.0, 1.0, 0.5, 0.25, 0.0]
-    i_extrema = 2
-    support_set = [true, true, true, true, true]
-    @test rel_supr(X, res, i_extrema, support_set, I_terminal, Maximum(), D) == 1.0
+@testset "dist!(D::AbstractMatrix, i1::Integer, i2::Integer, X::Matrix{T_x}): D Matrix modifier for ND" begin
+    D = zeros(3,3)
+    X = [0.0 0.5 1.0; 0.1 0.6 1.1; 0.2 0.7 1.2]
+    # Check no value assigned
+    dist!(D,1,2,X)
+    @test isapprox(dist!(D,1,1,X), 0, atol=1e-13)
+    # Check only actual position assigned, not inverse
+    D[1,3] = 5
+    @test dist!(D,1,3,X) == 5
+    # Check only inverse assigned, not requested position
+    D[2,3] = 3
+    dist!(D,3,2,X)
+    @test D[3,2] == 3        
 end

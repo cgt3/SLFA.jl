@@ -34,7 +34,7 @@ include("./solvers.jl")
     elseif D[i1,i2] == 0
         D[i1,i2] = D[i2,i1]
     elseif D[i2,i1] == 0
-        D[i12,i1] = D[i1,i2]
+        D[i2,i1] = D[i1,i2]
     end
 
     return D[i1,i2]
@@ -47,7 +47,7 @@ end
     elseif D[i1,i2] == 0
         D[i1,i2] = D[i2,i1]
     elseif D[i2,i1] == 0
-        D[i12,i1] = D[i1,i2]
+        D[i2,i1] = D[i1,i2]
     end
 
     return D[i1,i2]
