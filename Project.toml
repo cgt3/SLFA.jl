@@ -1,6 +1,6 @@
 name = "SLFA"
 uuid = "e28ed6c9-c85c-4507-97fa-2939981a08d3"
-version = "1.0.0-DEV"
+version = "0.1.0-DEV"
 authors = ["Christina Taylor", "Braden King"]
 
 [deps]
