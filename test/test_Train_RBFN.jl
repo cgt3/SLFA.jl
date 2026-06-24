@@ -130,3 +130,46 @@ end
     V = get_RBFN_vandermonde(X, Theta, T_phi)
     @test size(V) == (3, 4)
 end
+
+@testset "train_RBFN(X::Vector{T_x}, y::Vector{T_y};N_max=1): Train Full 1D RBFN, single RBF" begin
+    # using SLFA
+    X = [0.0, 0.5, 1.0]
+    y = [1.0, 2.0, 3.0]
+    T_phi = Gaussian{Isotropic, Float64, 1}
+    Theta, res_history, res, res_validation, A, D, N, T_phi, Theta0 = train_RBFN(X, y, N_max=1)
+    # println(res)
+    @test size(Theta) == (1, 4)
+    @test size(res_history,1) == (2)
+    @test size(res,1) == (3)
+    @test size(res_validation,1) == (0)
+    @test size(A) == (3, 3)
+    @test size(D) == (3, 3)
+    @test N == 1
+    @test T_phi == Gaussian{Isotropic, Float64, 1}
+end
+
+@testset "train_RBFN(X::Vector{T_x}, y::Vector{T_y};N_max=1): Mismatch X and Y sizes" begin
+    X = [0.0, 0.5, 1.0]
+    y = [1.0, 2.0]
+    T_phi = Gaussian{Isotropic, Float64, 1}
+        try
+        train_RBFN(X, y, N_max=1)
+        @test false #Fails to catch the mismatch dim
+    catch e
+        @test e == "SLFA.train_RBFN: Number of data points and residual values do not match."
+    end
+end
+
+@testset "train_RBFN(X::Vector{T_x}, y::Vector{T_y};conv_thresholds = []): Test convergence trigger for RBFN Finish" begin
+    X = [0.0, 0.5, 1.0]
+    y = [1.0, 2.0, 3.0]
+    T_phi = Gaussian{Isotropic, Float64, 1}
+    conv_thresholds = [1e10, 1e10, 1e10]
+    Theta, res_history, res, res_validation, A, D, N, T_phi, Theta0 = train_RBFN(X, y; N_max=10, conv_thresholds=conv_thresholds)
+    @test N == 0
+    @test res_history == [2]
+    @test res == y
+    @test res_validation == Float64[]
+    @test size(A) == (3, 3)
+    @test size(D) == (3, 3)
+end
