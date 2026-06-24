@@ -24,10 +24,10 @@ print_iter=false
 monotonicity=Strict()
 
 # Try using just the initial_guess as the final RBF
-Theta_IG, res_history_IG, _, _, _, _, _ = train_RBFN(X, y, N_max=N_max, solver=initial_guess, conv_conditions=res_error, conv_thresholds=error_threshold, print_iter=print_iter, is_monotonic=monotonicity);
+Theta_IG, res_history_IG, _, _, _, _, _, _, _ = train_RBFN(X, y, N_max=N_max, solver=initial_guess, conv_conditions=res_error, conv_thresholds=error_threshold, print_iter=print_iter, is_monotonic=monotonicity);
 
 # Try using LSQ with the LSQ solver
-Theta_LSQ, res_history_LSQ, _, _, _, _, _ = train_RBFN(X, y, N_max=N_max, solver=lsq_solver, conv_conditions=res_error, conv_thresholds=error_threshold, print_iter=print_iter, is_monotonic=monotonicity);
+Theta_LSQ, res_history_LSQ, _, _, _, _, _, _, _ = train_RBFN(X, y, N_max=N_max, solver=lsq_solver, conv_conditions=res_error, conv_thresholds=error_threshold, print_iter=print_iter, is_monotonic=monotonicity);
 
 
 # Try lsq + TV penalty for various omega
@@ -37,7 +37,7 @@ res_hist_all = []
 for omega in omega_all
     println("Starting omega=$omega...")
     solver_omega(theta0, X, res, A, D, N, T_phi::Type{<:BasisFunction}) = lsq_TV_solver(omega, theta0, X, res, A, D, N, T_phi::Type{<:BasisFunction})
-    Theta, res_history, A, D, N_final, T_phi, Theta0 = train_RBFN(X, y, N_max=N_max, solver=solver_omega, conv_conditions=res_error, conv_thresholds=error_threshold, print_iter=print_iter, is_monotonic=monotonicity);
+    Theta, res_history, _, _, _, _, _, _, _ = train_RBFN(X, y, N_max=N_max, solver=solver_omega, conv_conditions=res_error, conv_thresholds=error_threshold, print_iter=print_iter, is_monotonic=monotonicity);
 
     push!(res_hist_all, copy(res_history))
 end
