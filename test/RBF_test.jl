@@ -1,6 +1,5 @@
 using SLFA
 
-#Tests 1-5
 @testset  "Gaussian{Isotropic, T_x, 1}: 1D Gaussian RBF Inner Contstructor" begin
     x0 = 1.0;
     w = 2.0;
@@ -10,7 +9,7 @@ using SLFA
     @test rbf.w == 2.0
 end
 
-@testset "Gaussian{Isotropic, T_x, dim}: ND/1D Gaussian RBF Inner Constructor" begin
+@testset "Gaussian{Isotropic, T_x, dim}: ND/1D Gaussian RBF Inner Constructor Integer Dim" begin
     x0 = [1.0];
     w = 2.0;
     try
@@ -20,21 +19,34 @@ end
         @test e == "SLFA.Gaussian: dim must be an integer."
     end
     
+end
+
+@testset "Gaussian{Isotropic, T_x, dim}: ND/1D Gaussian RBF Inner Constructor Dim Mismatch" begin
+    x0 = [1.0];
+    w = 2.0;
     try
         rbf = Gaussian{Isotropic, typeof(x0[1]), 2}(x0, w)
         @test false #Fails to catch the non-matching dim
     catch e
         @test e == "SLFA.Gaussian: dim does not match length(x0)."
     end
-    
+end
+
+@testset "Gaussian{Isotropic, T_x, dim}: ND/1D Gaussian RBF Inner Constructor Empty x0" begin
+    x0 = [1.0];
+    w = 2.0;
     try
         x_empty = Float64[]
         rbf = Gaussian{Isotropic, typeof(x0[1]), 0}(x_empty, w)
         @test false #Fails to catch the empty x0
     catch e
         @test e == "SLFA.Gaussian: x0 = []"
-    end
-    
+    end 
+end
+
+@testset "Gaussian{Isotropic, T_x, dim}: ND/1D Gaussian RBF Inner Constructor 1D Anisotropic" begin
+    x0 = [1.0];
+    w = 2.0;
     rbf = Gaussian{Isotropic, typeof(x0[1]), length(x0)}(x0, w)
     @test rbf.x0 == 1.0
     @test rbf.w == 2.0
@@ -44,7 +56,7 @@ end
     @test rbf.w == 2.0
 end
 
-@testset "Gaussian{Anisotropic{Aligned}, T_x, dim}: Anisotropic RBF Inner Constructor" begin
+@testset "Gaussian{Anisotropic{Aligned}, T_x, dim}: Anisotropic RBF Inner Constructor Non-integer Dim" begin
     x0 = [1.0, 1.0];
     w = [2.0, 3.0];
     try
@@ -53,13 +65,22 @@ end
     catch e
         @test e == "SLFA.Gaussian: dim must be an integer."
     end
-    
+end
+
+@testset "Gaussian{Anisotropic{Aligned}, T_x, dim}: Anisotropic RBF Inner Constructor Dim Mismatch" begin
+    x0 = [1.0, 1.0];
+    w = [2.0, 3.0];
     try
         rbf = Gaussian{Anisotropic{Aligned}, typeof(x0[1]), 3}(x0, w)
         @test false #Fails to catch the non-matching dim
     catch e
         @test e == "SLFA.Gaussian: dim does not match length(x0)."
     end
+end
+
+@testset "Gaussian{Anisotropic{Aligned}, T_x, dim}: Anisotropic RBF Inner Constructor Empty x0" begin
+    x0 = [1.0, 1.0];
+    w = [2.0, 3.0];
     try
         x_empty = Float64[]
         rbf = Gaussian{Anisotropic{Aligned}, typeof(x0[1]), 0}(x_empty, w)
@@ -67,19 +88,33 @@ end
     catch e
         @test e == "SLFA.Gaussian: x0 = []"
     end
+end
+
+@testset "Gaussian{Anisotropic{Aligned}, T_x, dim}: Anisotropic RBF Inner Constructor Anisotropic used on 1D" begin
+    x0 = [1.0, 1.0];
+    w = [2.0, 3.0];  
     try
         rbf = Gaussian{Anisotropic{Aligned}, typeof(x0[1]), 1}([x0[1]], w)
         @test false #Fails to catch that anisotropic shouldnt be 1D
     catch e
         @test e == "SLFA.Gaussian: Anisotropic constructor should not be used for 1D Gaussians."
     end
+end
+
+@testset "Gaussian{Anisotropic{Aligned}, T_x, dim}: Anisotropic RBF Inner Constructor Length Mismatch between x0 and w" begin
+    x0 = [1.0, 1.0];
+    w = [2.0, 3.0];
     try
         rbf = Gaussian{Anisotropic{Aligned}, typeof(x0[1]), 2}(x0, [w[1]])
         @test false #Fails to catch that x0 and w dimensions dont match
     catch e
         @test e == "SLFA.Gaussian: length of x0 ($(length(x0))) does not match length of w ($(length([w[1]])))."
     end
-    
+end
+
+@testset "Gaussian{Anisotropic{Aligned}, T_x, dim}: Anisotropic RBF Inner Constructor Valid Construction" begin
+    x0 = [1.0, 1.0];
+    w = [2.0, 3.0];
     rbf = Gaussian{Anisotropic{Aligned}, typeof(x0[1]),length(x0)}(x0,w)
     @test rbf.x0 == [1.0, 1.0]
     @test rbf.w == [2.0,3.0]
@@ -146,8 +181,8 @@ end
     w = [2.0];
     theta = [x0;w]
     rbfeval1 = SLFA.eval_phi(1,theta,Gaussian{Isotropic,typeof(theta[1]),length(x0)})
+    @test isapprox(rbfeval1,1.0,atol=1e-13)
     rbfeval2 = SLFA.eval_phi(2,theta,Gaussian{Isotropic,typeof(theta[1]),length(x0)})
-    @test rbfeval1 == 1.0
     @test isapprox(rbfeval2,0.01831563888873418,atol=1e-13)
 end
 
