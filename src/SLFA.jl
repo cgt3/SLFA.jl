@@ -20,7 +20,7 @@ export Extremum, Maximum, Minimum
 export RBF, RBFN
 
 # Functions
-export dist!, get_nbr_matrix1D, get_support_set, get_2k_extrema, get_best_extrema, get_RBFN_matrix_system
+export dist!, get_nbr_matrix1D, get_support_set, get_2k_extrema, get_best_extrema, get_RBFN_vandermonde, get_RBFN_matrix_system
 export eval_phi, train_RBFN, train_RBFN_quasi1D
 
 # Abstract data types for classifying/parameterizing RBFs
