@@ -20,14 +20,13 @@ using SLFA
 end 
 
 @testset "RBFN(Theta::Matrix{T_theta}, T_phi::Type{<:BasisFunction}): RBFN Outer Constructor" begin
-    using SLFA
-    thetas = [1.0 1.1 1.2 1.3; 2.0 2.1 2.2 2.3; 3.0 3.1 3.2 3.3]
-    rbfn_1D = RBFN(thetas, Gaussian{Isotropic,typeof(thetas[1,1]),length(thetas[1,:])-3})
-    @test rbfn_1D isa RBFN{Gaussian{Isotropic,typeof(thetas[1,1]),1}}
-    @test rbfn_1D.a0 == sum(thetas[:,end])
-    @test rbfn_1D.a == thetas[:,3]
-    @test rbfn_1D.phi[1] == Gaussian{Isotropic,typeof(thetas[1,1]),1}(thetas[1,1], thetas[1,2])
-    @test rbfn_1D.N == size(thetas, 1)
+    Theta = [1.0 1.1 1.2 1.3; 2.0 2.1 2.2 2.3; 3.0 3.1 3.2 3.3]
+    rbfn_1D = RBFN(Theta, Gaussian{Isotropic, eltype(Theta), length(Theta[1,:])-3})
+    @test rbfn_1D isa RBFN{Gaussian{Isotropic, eltype(Theta), 1}}
+    @test rbfn_1D.a0 == sum(Theta[:,end])
+    @test rbfn_1D.a == Theta[:,3]
+    @test rbfn_1D.phi[1] == Gaussian{Isotropic,eltype(Theta),1}(Theta[1,1], Theta[1,2])
+    @test rbfn_1D.N == size(Theta, 1)
 end
 
 @testset "(network::RBFN)(x::Number): Functor for RBFN evaluation" begin
