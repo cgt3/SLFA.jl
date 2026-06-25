@@ -1,15 +1,27 @@
 module SLFA
 
+using LinearAlgebra
+using LsqFit
+using Optim
+using SparseArrays
+
+import Base.size
+
 # Abstract types
 export RBF_Orientation, Rotated, Aligned
 export RBF_Shape, Isotropic, Anisotropic
 export RBF_Sparsity, Sparse, Dense
-export RBF_Type, Gaussian
+export BasisFunction, RBF, Gaussian
+
+export Monotonicity, Strict, Nonstrict
+export Extremum, Maximum, Minimum
 
 # Data structures
 export RBF, RBFN
 
 # Functions
+export dist!, get_nbr_matrix1D, get_support_set, get_2k_extrema, get_best_extrema, get_RBFN_vandermonde, get_RBFN_matrix_system
+export eval_phi, train_RBFN, train_RBFN_quasi1D
 
 # Abstract data types for classifying/parameterizing RBFs
 abstract type RBF_Orientation end
@@ -17,25 +29,22 @@ abstract type Rotated <:RBF_Orientation end
 abstract type Aligned <:RBF_Orientation end
 
 abstract type RBF_Shape end
-abstract type Isotropic   <:RBF_Shape end
+abstract type Isotropic <:RBF_Shape end
 abstract type Anisotropic{T_orientation} <:RBF_Shape end
 
-abstract type RBF_Sparsity end
-abstract type Sparse <: RBF_Sparsity end
-abstract type Dense  <: RBF_Sparsity end
-
 # Abstract type for setting RBF parameters
-abstract type RBF end
+abstract type BasisFunction end
+abstract type RBF <: BasisFunction end
 
-struct Gaussian{T_shape, T_sparsity, dim} <: RBF
-    x0::Union{Vector{<:Real}, Real}
-    w::Union{Vector{<:Real}, Real}
+struct Gaussian{T_shape, T_x<:Real, dim} <: RBF
+    x0::Union{Vector{T_x}, T_x}
+    w::Union{Matrix{T_x}, Vector{T_x}, T_x}
 
-    function Gaussian{Isotropic, Dense, 1}(x0::Real, w::Real)
-        return new{Isotropic, Dense, 1}(x0, w)
+    function Gaussian{Isotropic, T_x, 1}(x0::T_x, w::T_x) where T_x<:Real
+        return new{Isotropic, T_x, 1}(x0, w)
     end
 
-    function Gaussian{Isotropic, Dense, dim}(x0::Vector{T}, w::Real) where {dim, T<:Real}
+    function Gaussian{Isotropic, T_x, dim}(x0::Vector{T_x}, w::T_x) where {dim, T_x<:Real}
         if !(dim isa Integer)
             throw("SLFA.Gaussian: dim must be an integer.")
         end
@@ -49,13 +58,13 @@ struct Gaussian{T_shape, T_sparsity, dim} <: RBF
         end
 
         if length(x0) == 1
-            return new{Isotropic, Dense, dim}(x0[1], w)
+            return new{Isotropic, T_x, dim}(x0[1], w)
         else
-            return new{Isotropic, Dense, dim}(x0, w)
+            return new{Isotropic, T_x, dim}(x0, w)
         end
     end
  
-    function Gaussian{Anisotropic{Aligned}, Dense, dim}(x0::Vector{T}, w::Vector{T}) where {dim,T<:Real}
+    function Gaussian{Anisotropic{Aligned}, T_x, dim}(x0::Vector{T_x}, w::Vector{T_x}) where {dim, T_x<:Real}
         if !(dim isa Integer)
             throw("SLFA.Gaussian: dim must be an integer.")
         end
@@ -74,62 +83,111 @@ struct Gaussian{T_shape, T_sparsity, dim} <: RBF
             throw("SLFA.Gaussian: length of x0 ($(length(x0))) does not match length of w ($(length(w))).")
         end
 
-        return new{Anisotropic{Aligned}, Dense, dim}(x0, w)
+        return new{Anisotropic{Aligned}, T_x, dim}(x0, w)
     end
 end
 
 # Non-parametric constructors
-function Gaussian(x0::Real, w::Real)
-    return Gaussian{Isotropic, Dense, 1}(x0, w)
+function Gaussian(x0::T_x, w::T_x) where T_x<:Real
+    return Gaussian{Isotropic, T_x, 1}(x0, w)
 end
 
-function Gaussian(x0::Vector{T}, w::Real) where T<:Real
-    return Gaussian{Isotropic, Dense, length(x0)}(x0, w)
+function Gaussian(x0::Vector{T_x}, w::T_x) where T_x<:Real
+    return Gaussian{Isotropic, T_x, length(x0)}(x0, w)
 end
 
-function Gaussian(x0::Vector{T}, w::Vector{T}) where T<:Real
+function Gaussian(x0::Vector{T_x}, w::Vector{T_x}) where T_x<:Real
     if length(x0) == 1 && length(w) == 1
-        return Gaussian{Isotropic, Dense, 1}(x0[1], w[1])
+        return Gaussian{Isotropic, T_x, 1}(x0[1], w[1])
     end
 
-    return Gaussian{Anisotropic{Aligned}, Dense, length(x0)}(x0, w)
+    return Gaussian{Anisotropic{Aligned}, T_x, length(x0)}(x0, w)
 end
+
+# Constructors for arrays of parameters
+function Gaussian{Isotropic, T_x, dim}(theta::Vector{T_x}) where {T_x<:Real, dim}
+    return Gaussian(theta[1:dim], theta[dim+1])
+end
+
+function Gaussian{Anisotropic{Aligned}, T_x, dim}(theta::Vector{T_x}) where {T_x<:Real, dim}
+    return Gaussian(theta[1:dim], theta[dim+1:2*dim])
+end
+
 
 # Functors for evaluating individual RBFs
-function (rbf::Gaussian{Isotropic, Dense, dim})(x) where dim
-    return exp( -sum( (rbf.w .*(x - rbf.x0)) .^ 2 ) )
+function (rbf::Gaussian{Isotropic, T_x, dim})(x) where {dim, T_x<:Real}
+    return exp( -sum( (rbf.w .* (x - rbf.x0)) .^ 2 ) )
 end
 
-function (rbf::Gaussian{Anisotropic{Aligned}, Dense, dim})(x) where dim
-    return exp( -sum( (rbf.w .*(x - rbf.x0)) .^ 2 ) ) 
+function (rbf::Gaussian{Anisotropic{Aligned}, T_x, dim})(x) where {dim, T_x<:Real}
+    return exp( -sum( (rbf.w .* (x .- rbf.x0)) .^ 2 ) ) 
 end
 
+# Functions for evaluating arrays of parameters as RBFs
+function eval_phi(x, theta::Vector{T_theta}, ::Type{Gaussian{Isotropic, T_x, dim}}) where {dim, T_theta<:Number, T_x<:Real}
+    return exp( -sum( (theta[dim+1] .*(x .- theta[1:dim])) .^ 2 ) )
+end
+
+function eval_phi(x, theta::Vector{T_theta}, ::Type{Gaussian{Anisotropic{Aligned}, T_x, dim}}) where {dim, T_theta<:Number, T_x<:Real}
+    return exp( -sum( (theta[(dim+1):2*dim] .*(x .- theta[1:dim])) .^ 2 ) )
+end
+
+# Functions for getting the number of parameters 
+function size(::Type{Gaussian{Isotropic, T_x, dim}}) where {dim, T_x<:Real}
+    return dim + 1
+end
+
+function size(::Type{Gaussian{Anisotropic{Aligned}, T_x, dim}}) where {dim, T_x<:Real}
+    return 2*dim
+end
 
 # Functions for constructing RBFN
-struct RBFN{T_RBF}
+struct RBFN{T_phi, T_y} 
     N::Integer
-    a0::Number
-    a::Vector{<:Number}
-    rbf::Vector{T_RBF}
+    a0::T_y
+    a::Vector{T_y}
+    phi::Vector{T_phi}
 
-    function RBFN(a0::Real, a::Vector{T}, rbf::Vector{T_RBF}) where {T<:Real, T_RBF<:RBF}
-        if length(a) != length(rbf)
-            throw("SLFA.RBFN: number of weights ($(length(a)))does not match number of basis functions ($(length(rbf))).")
+    function RBFN(a0::T_y, a::Vector{T_y}, phi::Vector{T_phi}) where {T_y<:Number, T_phi<:RBF}
+        if length(a) != length(phi)
+            throw("SLFA.RBFN: number of weights ($(length(a))) does not match number of basis functions ($(length(phi))).")
         end
 
-        return new{eltype(rbf)}(length(a), a0, a, rbf)
+        return new{eltype(phi), T_y}(length(a), a0, a, phi)
     end
 end
 
+function RBFN(Theta::Matrix{T_theta}, T_phi::Type{<:BasisFunction}) where T_theta<:Number
+    num_params = size(Theta,2)
+    a = Theta[:, num_params-1]
+    a0 = sum(Theta[:, num_params])
+
+    phi_all = [ T_phi(Theta[i,:]) for i in axes(Theta,1) ]
+    return RBFN(a0, a, phi_all)
+end
+
+# Functor for RBFNs
 function (network::RBFN)(x::Number)
     result = network.a0
     
     for k = 1:network.N
-        result += a[k]*network.rbf[k](x)
+        result += network.a[k]*network.phi[k](x)
     end
+
+    return result
 end
 
-#include("train_RBFN.jl")
+function (network::RBFN)(x::Vector{T_x}) where T_x<:Real
+    result = network.a0
+    
+    for k = 1:network.N
+        result += network.a[k]*network.phi[k](x)
+    end
+
+    return result
+end
+
+include("train_RBFN.jl")
 
 
 end # module
