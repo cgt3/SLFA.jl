@@ -34,7 +34,7 @@ include("./solvers.jl")
     elseif D[i1,i2] == 0
         D[i1,i2] = D[i2,i1]
     elseif D[i2,i1] == 0
-        D[i12,i1] = D[i1,i2]
+        D[i2,i1] = D[i1,i2]
     end
 
     return D[i1,i2]
@@ -47,7 +47,7 @@ end
     elseif D[i1,i2] == 0
         D[i1,i2] = D[i2,i1]
     elseif D[i2,i1] == 0
-        D[i12,i1] = D[i1,i2]
+        D[i2,i1] = D[i1,i2]
     end
 
     return D[i1,i2]
@@ -362,7 +362,7 @@ function train_RBFN(X::Vector{T_x}, y::Vector{T_y};
     # Compute neighbors
     A, D = get_nbr_matrix1D(X, duplicate_tol=duplicate_tol)
 
-    return train_RBFN(X, y, A, D, 
+    results = train_RBFN(X, y, A, D, 
                 N_max=N_max,
                 T_phi=T_phi,
                 solver=solver,
@@ -379,6 +379,7 @@ function train_RBFN(X::Vector{T_x}, y::Vector{T_y};
                 print_iter=print_iter,
                 redistribute_wts_final=redistribute_wts_final
             )
+    return results..., A, D
 end
 
 
@@ -467,7 +468,7 @@ function train_RBFN(X::Vector{T_x}, y::Vector{T_y}, A::AbstractArray{Bool, 2}, D
         Theta[:,end] .+= da0 / size(Theta,1)
     end
 
-    return Theta, res_history, res, res_validation, A, D, N, T_phi, Theta0
+    return Theta, res_history, res, res_validation, N, T_phi, Theta0
 end
 
 

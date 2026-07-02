@@ -78,7 +78,7 @@ end
     # Check only inverse assigned, not requested position
     D[2,3] = 3
     dist!(D,3,2,X)
-    @test D[3,2] == 3        
+    @test D[3,2] == 3
 end
 
 @testset "dist!(D::AbstractMatrix, i1::Integer, i2::Integer, X::Matrix{T_x}): D Matrix modifier for ND" begin
@@ -92,6 +92,7 @@ end
     # Check only actual position assigned, not inverse
     D[1,3] = 5
     @test dist!(D,1,3,X) == 5
+
     # Check only inverse assigned, not requested position
     D[2,3] = 3
     dist!(D,3,2,X)
@@ -235,7 +236,7 @@ end
     X = [0.0, 0.5, 1.0]
     y = [1.0, 2.0, 3.0]
     T_phi = Gaussian{Isotropic, Float64, 1}
-    Theta, res_history, res, res_validation, A, D, N, T_phi, Theta0 = train_RBFN(X, y, N_max=1)
+    Theta, res_history, res, res_validation, N, T_phi, Theta0, A, D = train_RBFN(X, y, N_max=1)
     @test size(Theta) == (1, 4)
     @test size(res_history,1) == (2)
     @test size(res,1) == (3)
@@ -263,7 +264,7 @@ end
     y = [1.0, 2.0, 3.0]
     T_phi = Gaussian{Isotropic, Float64, 1}
     conv_thresholds = [1e10, 1e10, 1e10]
-    Theta, res_history, res, res_validation, A, D, N, T_phi, Theta0 = train_RBFN(X, y; N_max=10, conv_thresholds=conv_thresholds)
+    Theta, res_history, res, res_validation, N, T_phi, Theta0, A, D = train_RBFN(X, y; N_max=10, conv_thresholds=conv_thresholds)
     @test N == 0
     @test res_history == [2]
     @test res == y
