@@ -34,7 +34,7 @@ include("./solvers.jl")
     elseif D[i1,i2] == 0
         D[i1,i2] = D[i2,i1]
     elseif D[i2,i1] == 0
-        D[i2,i1] = D[i1,i2]
+        D[i12,i1] = D[i1,i2]
     end
 
     return D[i1,i2]
@@ -47,7 +47,7 @@ end
     elseif D[i1,i2] == 0
         D[i1,i2] = D[i2,i1]
     elseif D[i2,i1] == 0
-        D[i2,i1] = D[i1,i2]
+        D[i12,i1] = D[i1,i2]
     end
 
     return D[i1,i2]
@@ -359,12 +359,60 @@ function train_RBFN(X::Vector{T_x}, y::Vector{T_y};
         redistribute_wts_final=true::Bool
     ) where {T_x<:AbstractFloat, T_y<:Number}
 
+    # Compute neighbors
+    A, D = get_nbr_matrix1D(X, duplicate_tol=duplicate_tol)
+
+    return train_RBFN(X, y, A, D, 
+                N_max=N_max,
+                T_phi=T_phi,
+                solver=solver,
+                score_extrema=score_extrema,
+                get_initial_guess=get_initial_guess,
+                conv_conditions=conv_conditions,
+                conv_thresholds=conv_thresholds,
+                conv_enforcement=conv_enforcement,
+                is_monotonic=is_monotonic,
+                start_gap=start_gap,
+                k_extrema=k_extrema,
+                X_validation=X_validation,
+                y_validation=y_validation,
+                print_iter=print_iter,
+                redistribute_wts_final=redistribute_wts_final
+            )
+end
+
+
+function train_RBFN(X::Vector{T_x}, y::Vector{T_y}, A::AbstractArray{Bool, 2}, D::AbstractArray;
+        N_max=DEFAULT_N_1D::Integer,
+        T_phi=Gaussian{Isotropic, T_x, 1}::Type{<:BasisFunction},
+        solver=lsq_solver::Function,
+        score_extrema=rel_supr::Function,
+        get_initial_guess=max_dist_theta0::Function,
+        conv_conditions=bound_diff::Function,
+        conv_thresholds=[DEFAULT_MAGN_REDUCTION]::Vector{<:Real},
+        conv_enforcement=all::Function,
+        is_monotonic=DEFAULT_MONOTONICITY,
+        start_gap=DEFAULT_START_GAP::Real,
+        k_extrema=DEFAULT_K_EXTREMA::Integer,
+        X_validation=T_x[]::Vector{T_x},
+        y_validation=T_y[]::Vector{T_y},
+        print_iter=false::Bool,
+        redistribute_wts_final=true::Bool
+    ) where {T_x<:AbstractFloat, T_y<:Number}
+    
     if length(X) != length(y)
         throw("SLFA.train_RBFN: Number of data points and residual values do not match.")
     end
 
-    # Compute neighbors
-    A, D = get_nbr_matrix1D(X, duplicate_tol=duplicate_tol)
+    n = length(y)
+    if size(A) != (n,n)
+        throw("SLFA.train_RBFN: Adjacency matrix A's dimensions do not match the number of samples.")
+    end
+
+    if size(D) != (n,n)
+        throw("SLFA.train_RBFN: Distance matrix D's dimensions do not match the number of samples.")
+    end
+
 
     # Set up empty arrays
     num_params_RBF = size(T_phi)
@@ -421,6 +469,7 @@ function train_RBFN(X::Vector{T_x}, y::Vector{T_y};
 
     return Theta, res_history, res, res_validation, A, D, N, T_phi, Theta0
 end
+
 
 # # nD
 # function train_RBFN(X::Matrix{T_x}, y::Vector{T_y}; ) where {T_x<:AbstractFloat, T_y<:Number}
