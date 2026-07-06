@@ -36,7 +36,7 @@ end
 
 # Initial guess generators
 function max_dist_theta0(X, res, A, D, i_extrema, support_set, I_terminal, extremum_type::Extremum, ::Type{Gaussian{Isotropic, T_x, dim}}; tol=MACHINE_EPS_FACTOR*eps(eltype(res))) where {T_x<:Real, dim}
-    diff = X[I_terminal, :] .- X[i_extrema,:]
+    diff = [ getsample(X, i) for i in I_terminal ] .- getsample(X,i_extrema)
     
     max_dist = abs(maximum(diff))
     min_dist = abs(minimum(diff))
@@ -46,7 +46,7 @@ function max_dist_theta0(X, res, A, D, i_extrema, support_set, I_terminal, extre
     end
 
     w0 = 2.5 ./ max(max_dist, min_dist)
-    c0 = X[i_extrema,:]
+    c0 = getsample(X, i_extrema)
     b0 = zero(eltype(res))
     if abs(res[i_extrema]) < tol
         if length(support_set) != sum(support_set)
@@ -65,7 +65,7 @@ function max_dist_theta0(X, res, A, D, i_extrema, support_set, I_terminal, extre
 end
 
 function max_dist_theta0(X, res, A, D, i_extrema, support_set, I_terminal, extremum_type::Extremum, ::Type{Gaussian{Anisotropic{Aligned}, T_x, dim}}; tol=MACHINE_EPS_FACTOR*eps(eltype(res))) where {T_x<:Real, dim}
-    diff = X[I_terminal, :] .- X[i_extrema,:]
+    diff = [ getsample(X, i) for i in I_terminal ] .- getsample(X,i_extrema)
     
     max_dist = abs.( maximum.( [ diff[:,i] for i in axes(diff, 2)] ) )
     min_dist = abs.( minimum.( [ diff[:,i] for i in axes(diff, 2)] ) )
@@ -73,7 +73,7 @@ function max_dist_theta0(X, res, A, D, i_extrema, support_set, I_terminal, extre
     max_dist[max_dist .< 1e-14] .= 0.5*minimum(D[A])
 
     w0 = 2.5 ./ max.(max_dist, min_dist)
-    c0 = X[i_extrema,:]
+    c0 = getsample(X, i_extrema)
     b0 = zero(eltype(res))
     if abs(res[i_extrema]) < tol
         if length(support_set) != sum(support_set)
@@ -125,7 +125,7 @@ function initial_guess(theta0, X, res, A, D, N, T_phi::Type{<:BasisFunction})
 end
 
 function lsq_solver(theta0, X, res, A, D, N, T_phi::Type{<:BasisFunction})
-    rbf(X, theta) = theta[end-1] .* [eval_phi(X[i,:], theta, T_phi) for i in axes(X,1)] .+ theta[end]
+    rbf(X, theta) = theta[end-1] .* [eval_phi(getsample(X,i), theta, T_phi) for i in 1:num_samples(X)] .+ theta[end]
     solver_results = curve_fit(rbf, X, res, theta0)
     
     theta = coef(solver_results)
@@ -134,7 +134,7 @@ end
 
 
 function lsq_TV_solver(omega_TV, theta0, X, res, A, D, N, T_phi::Type{<:BasisFunction})
-    res_new(theta) = res - theta[end-1] .* [eval_phi(X[i,:], theta, T_phi) for i in axes(X,1)] .- theta[end]
+    res_new(theta) = res - theta[end-1] .* [eval_phi(getsample(X,i), theta, T_phi) for i in 1:num_samples(X)] .- theta[end]
 
     if omega_TV > 0.0
         f_lsq_orig = norm(res_new(theta0))

@@ -83,7 +83,11 @@ end
 
 @testset "dist!(D::AbstractMatrix, i1::Integer, i2::Integer, X::Matrix{T_x}): D Matrix modifier for ND" begin
     D = zeros(3,3)
-    X = [0.0 0.0 1.0; 0.0 1.0 0.0]
+    # X = [0.0 0.0 1.0; 0.0 1.0 0.0]
+    X = [0.0 0.0;
+         0.0 1.0;
+         1.0 0.0;
+    ]
     # Check no value assigned
     dist!(D,1,2,X)
     @test isapprox(dist!(D,1,1,X), 0, atol=1e-13)

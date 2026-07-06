@@ -81,6 +81,8 @@ $\newcommand{\btheta}{\bm{\theta}}$
     3. Network weight
     4. Distributed bias
 
+7. $X$ matrix: Columns of X correspond to a single sample. This convention is because Julia is column-major, meaning memory is contiguous within a column of a matrix.
+
 ## Computing Neighbors
 
 ### Duplicate Points and Neighbors
