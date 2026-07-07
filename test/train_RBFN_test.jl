@@ -83,7 +83,11 @@ end
 
 @testset "dist!(D::AbstractMatrix, i1::Integer, i2::Integer, X::Matrix{T_x}): D Matrix modifier for ND" begin
     D = zeros(3,3)
-    X = [0.0 0.0 1.0; 0.0 1.0 0.0]
+    # X = [0.0 0.0 1.0; 0.0 1.0 0.0]
+    X = [0.0 0.0;
+         0.0 1.0;
+         1.0 0.0;
+    ]
     # Check no value assigned
     dist!(D,1,2,X)
     @test isapprox(dist!(D,1,1,X), 0, atol=1e-13)
@@ -97,6 +101,22 @@ end
     D[2,3] = 3
     dist!(D,3,2,X)
     @test D[3,2] == 3        
+end
+
+@testset "num_samples" begin
+    X_vec = [0.0, 0.5, 1.0]
+    X_mat = [1.0 2.0; 3.0 4.0; 5.0 6.0]
+
+    @test num_samples(X_vec) == 3
+    @test num_samples(X_mat) == 2
+end
+
+@testset "getsample" begin
+    X_vec = [0.0, 0.5, 1.0]
+    X_mat = [1.0 2.0; 3.0 4.0; 5.0 6.0]
+
+    @test getsample(X_vec, 2) == 0.5
+    @test getsample(X_mat, 2) == [2.0, 4.0, 6.0]
 end
 
 @testset "get_nbr_matrix1D(X::Vector{T_x}, D::AbstractMatrix, r::Real): Get neighbor matrix for 1D" begin

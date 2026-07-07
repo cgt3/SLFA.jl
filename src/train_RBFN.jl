@@ -29,7 +29,7 @@ include("./solvers.jl")
 
 @inline function dist!(D::AbstractMatrix, i1::Integer, i2::Integer, X::Vector{T_x}) where T_x<:AbstractFloat
     if D[i1,i2] == 0 && D[i2,i1] == 0
-        D[i1,i2] = abs(X[i1] - X[i2])
+        D[i1,i2] = abs(getsample(X,i1) - getsample(X,i2))
         D[i2,i1] = D[i1,i2]
     elseif D[i1,i2] == 0
         D[i1,i2] = D[i2,i1]
@@ -42,7 +42,7 @@ end
 
 @inline function dist!(D::AbstractMatrix, i1::Integer, i2::Integer, X::Matrix{T_x}) where T_x<:AbstractFloat
     if D[i1,i2] == 0 && D[i2,i1] == 0
-        D[i1,i2] = norm(X[i1,:] - X[i2,:])
+        D[i1,i2] = norm(getsample(X,i1) - getsample(X,i2))
         D[i2,i1] = D[i1, i2]
     elseif D[i1,i2] == 0
         D[i1,i2] = D[i2,i1]
@@ -53,17 +53,32 @@ end
     return D[i1,i2]
 end
 
+@inline function num_samples(X::Vector{<:Real})
+    return length(X)
+end
+
+@inline function num_samples(X::Matrix{<:Real})
+    return size(X,2)
+end
+
+@inline function getsample(X::Vector{<:Real}, i::Integer)
+    return X[i]
+end
+
+@inline function getsample(X::Matrix{<:Real}, i::Integer)
+    return X[:,i]
+end
 
 # Helper functions ====================================================================
 
-function get_nbr_matrix1D(X::Union{Vector, Matrix}; duplicate_tol=MACHINE_EPS_FACTOR*eps(eltype(X)))
+function get_nbr_matrix1D(X::Vector{T_x}; duplicate_tol=MACHINE_EPS_FACTOR*eps(T_x)) where T_x<:AbstractFloat
     
     # Get elements in sorted order if in true 1D
     if X isa Vector
         n = length(X)
         I_sorted = sortperm(X)
     else
-        n = size(X,1)
+        n = num_samples(X)
         I_sorted = 1:n
     end
 
@@ -162,7 +177,7 @@ function get_support_set(X::Union{Vector{T_x}, Matrix{T_x}}, res::Vector{T_y}, i
     support_set[i_extrema] = true
 
     I_next = findnz(A[:, i_extrema])[1]
-    I_prev = [ i_extrema for i in 1:length(I_next) ]   # These are the nodes to check monotonicity againsts
+    I_prev = [ i_extrema for i in 1:length(I_next) ]   # These are the nodes to check monotonicity against
     I_parent = [ i_extrema for i in 1:length(I_next) ] # These are the nodes that added a given node
 
     in_I_next = zeros(Bool, length(res))
@@ -291,7 +306,7 @@ function get_2k_extrema(X::Union{Vector{T_x}, Matrix{T_x}}, res::Vector{T_y}, A:
     return I_extrema, support_sets, I_terminal_all, extrema_types
 end
 
-function get_best_extrema(X, res::Vector{T_y}, I_extrema::Vector{Int64}, support_sets, I_terminal_all::Vector{Vector{Int64}}, extrema_types::Vector{<:Extremum}, D::AbstractMatrix, score_func) where {T_y<:Number}
+function get_best_extrema(X::Union{Vector{T_x}, Matrix{T_x}}, res::Vector{T_y}, I_extrema::Vector{Int64}, support_sets, I_terminal_all::Vector{Vector{Int64}}, extrema_types::Vector{<:Extremum}, D::AbstractMatrix, score_func) where {T_x<:Real, T_y<:Number}
     n = length(res)
     scores = zeros(n)
 
@@ -310,11 +325,11 @@ end
 
 function get_RBFN_vandermonde(X::Union{Vector{T_x}, Matrix{T_x}}, Theta::Matrix{T_x}, T_phi::Type{T_BF}) where {T_x<:Real, T_BF<:BasisFunction}
 # Get the Vandermonde matrix of the basis functions
-    V = zeros(T_x, size(X,1), size(Theta,1)+1)
-    for i in axes(X,1)
+    V = zeros(T_x, num_samples(X), size(Theta,1)+1)
+    for i in 1:num_samples(X)
         V[i,1] = one(T_x)
         for j in axes(Theta,1)
-            V[i,j+1] = eval_phi(X[i,:], Theta[j,:], T_phi)
+            V[i,j+1] = eval_phi(getsample(X,i), Theta[j,:], T_phi)
         end
     end
 
