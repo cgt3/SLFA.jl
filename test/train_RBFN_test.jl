@@ -103,6 +103,22 @@ end
     @test D[3,2] == 3        
 end
 
+@testset "num_samples" begin
+    X_vec = [0.0, 0.5, 1.0]
+    X_mat = [1.0 2.0; 3.0 4.0; 5.0 6.0]
+
+    @test num_samples(X_vec) == 3
+    @test num_samples(X_mat) == 2
+end
+
+@testset "getsample" begin
+    X_vec = [0.0, 0.5, 1.0]
+    X_mat = [1.0 2.0; 3.0 4.0; 5.0 6.0]
+
+    @test getsample(X_vec, 2) == 0.5
+    @test getsample(X_mat, 2) == [2.0, 4.0, 6.0]
+end
+
 @testset "get_nbr_matrix1D(X::Vector{T_x}, D::AbstractMatrix, r::Real): Get neighbor matrix for 1D" begin
     X = [0.0, 1.0, 0.5]
     A,D = get_nbr_matrix1D(X)

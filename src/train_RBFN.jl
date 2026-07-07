@@ -57,7 +57,7 @@ end
     return length(X)
 end
 
-@inline function num_sample(X::Matrix{<:Real})
+@inline function num_samples(X::Matrix{<:Real})
     return size(X,2)
 end
 
