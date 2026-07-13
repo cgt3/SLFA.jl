@@ -27,6 +27,22 @@ const DEFAULT_MONOTONICITY=Strict();
 include("./solvers.jl")
 
 
+@inline function num_samples(X::Vector{<:Real})
+    return length(X)
+end
+
+@inline function num_samples(X::Matrix{<:Real})
+    return size(X,2)
+end
+
+@inline function getsample(X::Vector{<:Real}, i::Integer)
+    return X[i]
+end
+
+@inline function getsample(X::Matrix{<:Real}, i::Integer)
+    return X[:,i]
+end
+
 @inline function dist!(D::AbstractMatrix, i1::Integer, i2::Integer, X::Vector{T_x}) where T_x<:AbstractFloat
     if D[i1,i2] == 0 && D[i2,i1] == 0
         D[i1,i2] = abs(getsample(X,i1) - getsample(X,i2))
@@ -53,21 +69,6 @@ end
     return D[i1,i2]
 end
 
-@inline function num_samples(X::Vector{<:Real})
-    return length(X)
-end
-
-@inline function num_samples(X::Matrix{<:Real})
-    return size(X,2)
-end
-
-@inline function getsample(X::Vector{<:Real}, i::Integer)
-    return X[i]
-end
-
-@inline function getsample(X::Matrix{<:Real}, i::Integer)
-    return X[:,i]
-end
 
 # Helper functions ====================================================================
 
@@ -355,7 +356,7 @@ end
 # - neighbor graph (for nD case)
 
 # SLFA in 1D
-function train_RBFN(X::Vector{T_x}, y::Vector{T_y};
+function train_RBFN(X::Union{Vector{T_x}, Matrix{T_x}}, y::Vector{T_y};
         N_max=DEFAULT_N_1D::Integer,
         T_phi=Gaussian{Isotropic, T_x, 1}::Type{<:BasisFunction},
         solver=lsq_solver::Function,
@@ -398,7 +399,7 @@ function train_RBFN(X::Vector{T_x}, y::Vector{T_y};
 end
 
 
-function train_RBFN(X::Vector{T_x}, y::Vector{T_y}, A::AbstractArray{Bool, 2}, D::AbstractArray;
+function train_RBFN(X::Union{Vector{T_x}, Matrix{T_x}}, y::Vector{T_y}, A::AbstractArray{Bool, 2}, D::AbstractArray;
         N_max=DEFAULT_N_1D::Integer,
         T_phi=Gaussian{Isotropic, T_x, 1}::Type{<:BasisFunction},
         solver=lsq_solver::Function,
@@ -416,11 +417,11 @@ function train_RBFN(X::Vector{T_x}, y::Vector{T_y}, A::AbstractArray{Bool, 2}, D
         redistribute_wts_final=true::Bool
     ) where {T_x<:AbstractFloat, T_y<:Number}
     
-    if length(X) != length(y)
+    if num_samples(X) != num_samples(y)
         throw("SLFA.train_RBFN: Number of data points and residual values do not match.")
     end
 
-    n = length(y)
+    n = num_samples(y)
     if size(A) != (n,n)
         throw("SLFA.train_RBFN: Adjacency matrix A's dimensions do not match the number of samples.")
     end
@@ -463,8 +464,8 @@ function train_RBFN(X::Vector{T_x}, y::Vector{T_y}, A::AbstractArray{Bool, 2}, D
         Theta[N, :] .= theta
 
         # Update the residuals and residual history
-        res .= res - theta[num_params-1]*map(x->eval_phi(x, theta, T_phi), X) .- theta[num_params]
-        res_validation .= res_validation - theta[num_params-1]*map(x->eval_phi(x, theta, T_phi), X_validation) .- theta[num_params]
+        res .= res - theta[num_params-1]*eval_phi(X, theta, T_phi) .- theta[num_params]
+        res_validation .= res_validation - theta[num_params-1]*eval_phi(X_validation, theta, T_phi) .- theta[num_params]
 
         res_error = conv_conditions(res, res_validation, res_history, N)
         push!(res_history, res_error)

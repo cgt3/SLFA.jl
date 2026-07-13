@@ -124,12 +124,38 @@ function (rbf::Gaussian{Anisotropic{Aligned}, T_x, dim})(x) where {dim, T_x<:Rea
 end
 
 # Functions for evaluating arrays of parameters as RBFs
-function eval_phi(x, theta::Vector{T_theta}, ::Type{Gaussian{Isotropic, T_x, dim}}) where {dim, T_theta<:Number, T_x<:Real}
-    return exp( -sum( (theta[dim+1] .*(x .- theta[1:dim])) .^ 2 ) )
+function eval_phi(x::Real, theta::Vector{T_theta}, ::Type{Gaussian{Isotropic, T_x, 1}}) where {T_theta<:Number, T_x<:Real}
+    return exp( -(theta[2]*(x - theta[1]))^2 )
 end
 
-function eval_phi(x, theta::Vector{T_theta}, ::Type{Gaussian{Anisotropic{Aligned}, T_x, dim}}) where {dim, T_theta<:Number, T_x<:Real}
+function eval_phi(x::Vector{<:Real}, theta::Vector{T_theta}, ::Type{Gaussian{Isotropic, T_x, dim}}) where {dim, T_theta<:Number, T_x<:Real}
+    if dim == 1
+        return exp.( - (theta[dim+1] .*(x .- theta[1:dim])) .^ 2 )
+    else
+        return exp( -sum( (theta[dim+1] .*(x .- theta[1:dim])) .^ 2 ) )
+    end
+end
+
+function eval_phi(x::Vector{<:Real}, theta::Vector{T_theta}, ::Type{Gaussian{Anisotropic{Aligned}, T_x, dim}}) where {dim, T_theta<:Number, T_x<:Real}
     return exp( -sum( (theta[(dim+1):2*dim] .*(x .- theta[1:dim])) .^ 2 ) )
+end
+
+function eval_phi(X::Matrix{<:Real}, theta::Vector{T_theta}, ::Type{Gaussian{Isotropic, T_x, dim}}) where {dim, T_theta<:Number, T_x<:Real}
+    n = num_samples(X);
+    result = zeros(T_theta, n)
+    for i in eachindex(result)
+        result[i] = eval_phi(getsample(X, i), theta, Gaussian{Isotropic, T_x, dim})
+    end
+    return result
+end
+
+function eval_phi(X::Matrix{<:Real}, theta::Vector{T_theta}, ::Type{Gaussian{Anisotropic{Aligned}, T_x, dim}}) where {dim, T_theta<:Number, T_x<:Real}
+    n = num_samples(X);
+    result = zeros(T_theta, n)
+    for i in eachindex(result)
+        result[i] = eval_phi(getsample(X, i), theta, Gaussian{Anisotropic{Aligned}, T_x, dim})
+    end
+    return result
 end
 
 # Functions for getting the number of parameters 
