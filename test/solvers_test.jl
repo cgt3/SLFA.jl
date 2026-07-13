@@ -13,8 +13,8 @@ using LinearAlgebra
     @test supr(X,res,i_extrema,support_set,I_terminal,extremum_type,D) == -0.5
 end
 
-@testset "rel_supr(X, res, i_extrema, support_set, I_terminal, ::Maximum, D): Relative supremum for maximum" begin
-    # Test when the i_extrema is not at the residual maximum
+@testset "rel_supr: Relative supremum for a maximum" begin
+    # Test when the i_extrema is not actually a residual maximum
     X = [0.0, 0.5, 1.0]
     res = [0.0, 1.0, 0.5]
     i_extrema = 3
@@ -39,8 +39,8 @@ end
     @test rel_supr(X, res, i_extrema, support_set, I_terminal, Maximum(), D) == 1.0
 end
 
-@testset "rel_supr(X, res, i_extrema, support_set, I_terminal, ::Minimum, D): Relative supremum for minimum" begin
-    # Test when the i_extrema is not at the residual minimum
+@testset "rel_supr: Relative supremum is a minimum" begin
+    # Test when the i_extrema is not actually a minimum
     X = [0.0, 0.5, 1.0]
     res = [0.0, -1.0, -0.5]
     i_extrema = 3
@@ -65,7 +65,7 @@ end
     @test rel_supr(X, res, i_extrema, support_set, I_terminal, Minimum(), D) == 1.0
 end
 
-@testset "max_dist_theta0(X, res, A, D, i_extrema, support_set, I_terminal, extremum_type::Extremum, ::Type{Gaussian{Isotropic, T_x, dim}}) where {T_x, dim}: Initial Guess RBF using maximum distance" begin
+@testset "max_dist_theta0: Initial Guess RBF using maximum distance" begin
     X = [0.0, 0.5, 1.0]
     res = [0.0, 0.5, 0.0]
     A = [[false, true, false], [true, false, true], [false, false, true]]
@@ -74,11 +74,12 @@ end
     support_set = [true, true, true]
     I_terminal = [1, 3]
     extremum_type = Maximum()
+
     # Tests general case with maximum
     @test max_dist_theta0(X, res, A, D, i_extrema, support_set, I_terminal, extremum_type, Gaussian{Isotropic, Float64, 1}) == [0.5, 5.0, only(X[i_extrema,:]), 0.0]
 end
 
-@testset "max_dist_theta0(X, res, A, D, i_extrema, support_set, I_terminal, extremum_type::Extremum, ::Type{Gaussian{Isotropic, T_x, dim}}) where {T_x, dim}: Initial Guess RBF using maximum distance - Small extrema" begin
+@testset "max_dist_theta0: Initial Guess RBF using maximum distance - Small extrema" begin
     X = [0.0, 0.5, 1.0]
     res = [0.0, .020446049250313e-13, 1.0]
     A = [[false, true, false], [true, false, true], [false, false, true]]
@@ -87,18 +88,20 @@ end
     I_terminal = [1, 3]
     extremum_type = Maximum()
     support_set = [true, true, false]
+
     # Test if support set is not full data set
-    @test max_dist_theta0(X, res, A, D, i_extrema, support_set, I_terminal, extremum_type, Gaussian{Isotropic, Float64, 1}) == [0.5, 5.0, only(res[i_extrema])-1, 1.0] 
+    @test max_dist_theta0(X, res, A, D, i_extrema, support_set, I_terminal, extremum_type, Gaussian{Isotropic, Float64, 1}) == [0.5, 5.0, res[i_extrema]-1, 1.0] 
+    
     # Test if extremum is a maximum
     support_set = [true, true, true]
     @test max_dist_theta0(X, res, A, D, i_extrema, support_set, I_terminal, extremum_type, Gaussian{Isotropic, Float64, 1}) == [0.5, 5.0, res[i_extrema]-minimum(res), minimum(res)] 
+    
     # Test if extremum is a minimum
-    # res = [0.0, -2.020446049250313e-13, -1.0]
     extremum_type = Minimum()
     @test max_dist_theta0(X, res, A, D, i_extrema, support_set, I_terminal, extremum_type, Gaussian{Isotropic, Float64, 1}) == [0.5, 5.0, res[i_extrema]-maximum(res), maximum(res)] 
 end
 
-@testset "squaredTV(res, A, D): Squared TV Penalty Value" begin
+@testset "squaredTV: Squared TV Penalty Value" begin
     using SparseArrays
     res = [0.0, 0.5, 0.0]
     A = sparse([false true false; true false true; false true false])
@@ -112,7 +115,7 @@ end
     @test RMSE(res) == norm(res) / sqrt(length(res))
 end
 
-@testset "res_error(res, res_validation, res_history, N): Set of Error Measurements" begin
+@testset "res_error: Set of Error Measurements" begin
     res = [0.0, 0.5, 0.0]
     res_validation = res
     res_history = res
@@ -120,7 +123,7 @@ end
     @test res_error(res, res_validation, res_history, N) == [RMSE(res), maximum(res), maximum(res)-minimum(res)]
 end
 
-@testset "initial_guess(theta0, X, res, A, D, N, T_phi::Type{<:BasisFunction}): Get Initial Guess and Isolate Theta 0" begin
+@testset "initial_guess: Get Initial Guess and Isolate Theta 0" begin
     X = [0.0, 0.5, 1.0]
     res = [0.0, 0.5, 0.0]
     A = [[false, true, false], [true, false, true], [false, false, true]]
@@ -134,7 +137,7 @@ end
     @test initial_guess(theta0, X, res, A, D, N, Gaussian{Isotropic, Float64, 1}) == theta0
 end
 
-@testset "lsq_solver(theta0, X, res, A, D, N, T_phi::Type{<:BasisFunction}): RBF Simple LSQ Solver" begin
+@testset "lsq_solver: RBF Simple LSQ Solver" begin
     X = [0.0, 0.5, 1.0]
     res = [0.0, 0.5, 0.0]
     A = sparse([false true false; true false true; false true false])
@@ -148,7 +151,7 @@ end
     @test all(isa.(lsq_solver(theta0, X, res, A, D, N, Gaussian{Isotropic, Float64, 1}),Number))
 end
 
-@testset "lsq_TV_solver(omega_TV, theta0, X, res, A, D, N, T_phi::Type{<:BasisFunction}): RBF Combined TV Penalty Solver" begin
+@testset "lsq_TV_solver: RBF Combined TV Penalty Solver" begin
     X = [0.0, 0.5, 1.0]
     res = [0.0, 0.5, 0.0]
     A = sparse([false true false; true false true; false true false])

@@ -125,7 +125,7 @@ function initial_guess(theta0, X, res, A, D, N, T_phi::Type{<:BasisFunction})
 end
 
 function lsq_solver(theta0, X, res, A, D, N, T_phi::Type{<:BasisFunction})
-    rbf(X, theta) = theta[end-1] .* [eval_phi(getsample(X,i), theta, T_phi) for i in 1:num_samples(X)] .+ theta[end]
+    rbf(X, theta) = theta[end-1] .* eval_phi(X, theta, T_phi) .+ theta[end]
     solver_results = curve_fit(rbf, X, res, theta0)
     
     theta = coef(solver_results)
@@ -134,7 +134,7 @@ end
 
 
 function lsq_TV_solver(omega_TV, theta0, X, res, A, D, N, T_phi::Type{<:BasisFunction})
-    res_new(theta) = res - theta[end-1] .* [eval_phi(getsample(X,i), theta, T_phi) for i in 1:num_samples(X)] .- theta[end]
+    res_new(theta) = res - theta[end-1] .* eval_phi(X, theta, T_phi) .- theta[end]
 
     if omega_TV > 0.0
         f_lsq_orig = norm(res_new(theta0))
