@@ -1,6 +1,5 @@
-using SLFA
 
-@testset "RBFN(a0::T_y, a::Vector{T_y}, phi::Vector{T_phi}): RBFN Inner Constructor" begin
+@testset "RBFN: Inner Constructor" begin
     a0 = 1.0
     a = [0.5, 0.3, 0.2]
     phi = [Gaussian{Isotropic, typeof(a0), 1}(1.0, 2.0), Gaussian{Isotropic, typeof(a0), 1}(2.0, 3.0), Gaussian{Isotropic, typeof(a0), 1}(3.0, 4.0)]
@@ -19,7 +18,7 @@ using SLFA
     end
 end 
 
-@testset "RBFN(Theta::Matrix{T_theta}, T_phi::Type{<:BasisFunction}): RBFN Outer Constructor" begin
+@testset "RBFN: Outer Constructor" begin
     Theta = [1.0 1.1 1.2 1.3; 2.0 2.1 2.2 2.3; 3.0 3.1 3.2 3.3]
     rbfn_1D = RBFN(Theta, Gaussian{Isotropic, eltype(Theta), length(Theta[1,:])-3})
     @test rbfn_1D isa RBFN{Gaussian{Isotropic, eltype(Theta), 1}}

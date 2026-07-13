@@ -64,7 +64,7 @@ end
     @test monotype(c,a,Maximum())==true
 end
 
-@testset "dist!(D::AbstractMatrix, i1::Integer, i2::Integer, X::Vector{T_x}): D matrix modifier for 1D" begin
+@testset "dist!: D matrix modifier for 1D" begin
     D = zeros(3,3)
     X = [0.0, 0.5, 1.0]
     # Check no value assigned
@@ -81,9 +81,8 @@ end
     @test D[3,2] == 3
 end
 
-@testset "dist!(D::AbstractMatrix, i1::Integer, i2::Integer, X::Matrix{T_x}): D Matrix modifier for ND" begin
+@testset "dist!: D Matrix modifier for nD" begin
     D = zeros(3,3)
-    # X = [0.0 0.0 1.0; 0.0 1.0 0.0]
     X = [0.0 0.0;
          0.0 1.0;
          1.0 0.0;
@@ -119,14 +118,14 @@ end
     @test getsample(X_mat, 2) == [2.0, 4.0, 6.0]
 end
 
-@testset "get_nbr_matrix1D(X::Vector{T_x}, D::AbstractMatrix, r::Real): Get neighbor matrix for 1D" begin
+@testset "get_nbr_matrix1D: Get neighbor matrix for 1D" begin
     X = [0.0, 1.0, 0.5]
     A,D = get_nbr_matrix1D(X)
     @test A == sparse(Bool.([0 0 1; 0 0 1; 1 1 0]))
     @test isapprox(D, sparse([0.0 0.0 0.5; 0.0 0.0 0.5; 0.5 0.5 0.0]), atol=1e-13)
 end
 
-@testset "get_nbr_matrix1D(X::Vector{T_x}, D::AbstractMatrix, r::Real): Get neighbor matrix for 1D - Duplicates" begin    
+@testset "get_nbr_matrix1D: Get neighbor matrix for 1D - duplicates" begin    
     X = [0.0, 0.5, 0.5, 1.0, 1.0]
     A,D = get_nbr_matrix1D(X)
     @test A == sparse(Bool[0 1 1 0 0; 
@@ -196,7 +195,7 @@ end
     @test support_sets == Vector{Bool}[[1, 1, 1], [1, 1, 1]]
 end
 
-@testset "get_2k_extrema: Get >2 Extrema" begin
+@testset "get_2k_extrema: Get >2 extrema" begin
     X = [0.0, 0.5, 1.0, 1.5, 2.0]
     res = [1.0, 2.0, 3.0, 2.0, 3.0]
     A,D = get_nbr_matrix1D(X)
@@ -211,7 +210,7 @@ end
  
 end
 
-@testset "get_2k_extrema: Get >2 Extrema, <2 available" begin
+@testset "get_2k_extrema: Get >2eExtrema, <2 available" begin
     X = [0.0, 0.5, 1.0, 1.5, 2.0]
     res = [1.0, 2.0, 3.0, 2.0, 3.0]
     A,D = get_nbr_matrix1D(X)
@@ -226,7 +225,7 @@ end
  
 end
 
-@testset "get_best_extrema(X::Union{Vector{T_x}, Matrix{T_x}}, res::Vector{T_y}, A::AbstractMatrix, D::AbstractMatrix, score_func): Get best extrema" begin
+@testset "get_best_extrema: Get best extrema" begin
     X = [0.0, 0.5, 1.0, 1.5, 2.0]
     res = [2.1, 2.0, 3.5, 2.5, 1.5]
     A,D = get_nbr_matrix1D(X)
@@ -238,7 +237,7 @@ end
     @test support_set == Bool[0, 1, 1, 1, 1]
 end
 
-@testset "get_RBFN_vandermonde(X::Union{Vector{T_x}, Matrix{T_x}}, Theta::Matrix{T_x}, T_phi::Type{<:BasisFunction}): Get RBFN Vandermonde matrix" begin
+@testset "get_RBFN_vandermonde: Get RBFN Vandermonde matrix" begin
     X = [0.0, 0.5, 1.0]
     Theta = [1.0 2.0 3.0 4.0; 3.0 4.0 5.0 6.0; 5.0 6.0 7.0 8.0]
     T_phi = Gaussian{Isotropic, Float64, 1}
@@ -252,7 +251,7 @@ end
     @test isapprox(V[1, 4], 0.0, atol=1e-13)
 end
 
-@testset "train_RBFN(X::Vector{T_x}, y::Vector{T_y};N_max=1): Train Full 1D RBFN, single RBF" begin
+@testset "train_RBFN: Train Full 1D RBFN, single RBF" begin
     X = [0.0, 0.5, 1.0]
     y = [1.0, 2.0, 3.0]
     T_phi = Gaussian{Isotropic, Float64, 1}
@@ -267,7 +266,7 @@ end
     @test T_phi == Gaussian{Isotropic, Float64, 1}
 end
 
-@testset "train_RBFN(X::Vector{T_x}, y::Vector{T_y};N_max=1): Mismatch X and Y sizes" begin
+@testset "train_RBFN: Mismatch X and Y sizes" begin
     X = [0.0, 0.5, 1.0]
     y = [1.0, 2.0]
     T_phi = Gaussian{Isotropic, Float64, 1}
@@ -279,7 +278,7 @@ end
     end
 end
 
-@testset "train_RBFN(X::Vector{T_x}, y::Vector{T_y};conv_thresholds = []): Test convergence trigger for RBFN Finish" begin
+@testset "train_RBFN: Test convergence trigger for RBFN Finish" begin
     X = [0.0, 0.5, 1.0]
     y = [1.0, 2.0, 3.0]
     T_phi = Gaussian{Isotropic, Float64, 1}

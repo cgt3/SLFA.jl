@@ -1,6 +1,6 @@
 using SLFA
 
-@testset  "Gaussian{Isotropic, T_x, 1}: 1D Gaussian RBF Inner Contstructor" begin
+@testset  "Gaussian{Isotropic}: 1D Gaussian RBF Inner Constructor 1D" begin
     x0 = 1.0;
     w = 2.0;
 
@@ -9,7 +9,7 @@ using SLFA
     @test rbf.w == 2.0
 end
 
-@testset "Gaussian{Isotropic, T_x, dim}: ND/1D Gaussian RBF Inner Constructor Integer Dim" begin
+@testset "Gaussian{Isotropic}: ND/1D Gaussian RBF Inner Constructor" begin
     x0 = [1.0];
     w = 2.0;
     try
@@ -21,7 +21,7 @@ end
     
 end
 
-@testset "Gaussian{Isotropic, T_x, dim}: ND/1D Gaussian RBF Inner Constructor Dim Mismatch" begin
+@testset "Gaussian{Isotropic}: ND/1D Gaussian RBF Inner Constructor Dim Mismatch" begin
     x0 = [1.0];
     w = 2.0;
     try
@@ -32,7 +32,7 @@ end
     end
 end
 
-@testset "Gaussian{Isotropic, T_x, dim}: ND/1D Gaussian RBF Inner Constructor Empty x0" begin
+@testset "Gaussian{Isotropic}: ND/1D Gaussian RBF Inner Constructor Empty x0" begin
     x0 = [1.0];
     w = 2.0;
     try
@@ -44,7 +44,7 @@ end
     end 
 end
 
-@testset "Gaussian{Isotropic, T_x, dim}: ND/1D Gaussian RBF Inner Constructor 1D Anisotropic" begin
+@testset "Gaussian{Isotropic}: ND/1D Gaussian RBF Inner Constructor 1D Anisotropic" begin
     x0 = [1.0];
     w = 2.0;
     rbf = Gaussian{Isotropic, eltype(x0), length(x0)}(x0, w)
@@ -56,7 +56,7 @@ end
     @test rbf.w == 2.0
 end
 
-@testset "Gaussian{Anisotropic{Aligned}, T_x, dim}: Anisotropic RBF Inner Constructor Non-integer Dim" begin
+@testset "Gaussian{Anisotropic{Aligned}}: Anisotropic RBF Inner Constructor Non-integer Dim" begin
     x0 = [1.0, 1.0];
     w = [2.0, 3.0];
     try
@@ -67,7 +67,7 @@ end
     end
 end
 
-@testset "Gaussian{Anisotropic{Aligned}, T_x, dim}: Anisotropic RBF Inner Constructor Dim Mismatch" begin
+@testset "Gaussian{Anisotropic{Aligned}}: Anisotropic RBF Inner Constructor Dim Mismatch" begin
     x0 = [1.0, 1.0];
     w = [2.0, 3.0];
     try
@@ -78,7 +78,7 @@ end
     end
 end
 
-@testset "Gaussian{Anisotropic{Aligned}, T_x, dim}: Anisotropic RBF Inner Constructor Empty x0" begin
+@testset "Gaussian{Anisotropic{Aligned}}: Anisotropic RBF Inner Constructor Empty x0" begin
     x0 = [1.0, 1.0];
     w = [2.0, 3.0];
     try
@@ -90,7 +90,7 @@ end
     end
 end
 
-@testset "Gaussian{Anisotropic{Aligned}, T_x, dim}: Anisotropic RBF Inner Constructor Anisotropic used on 1D" begin
+@testset "Gaussian{Anisotropic{Aligned}}: Anisotropic RBF Inner Constructor Anisotropic used on 1D" begin
     x0 = [1.0, 1.0];
     w = [2.0, 3.0];  
     try
@@ -101,7 +101,7 @@ end
     end
 end
 
-@testset "Gaussian{Anisotropic{Aligned}, T_x, dim}: Anisotropic RBF Inner Constructor Length Mismatch between x0 and w" begin
+@testset "Gaussian{Anisotropic{Aligned}}: Anisotropic RBF Inner Constructor Length Mismatch between x0 and w" begin
     x0 = [1.0, 1.0];
     w = [2.0, 3.0];
     try
@@ -112,7 +112,7 @@ end
     end
 end
 
-@testset "Gaussian{Anisotropic{Aligned}, T_x, dim}: Anisotropic RBF Inner Constructor Valid Construction" begin
+@testset "Gaussian{Anisotropic{Aligned}}: Anisotropic RBF Inner Constructor Valid Construction" begin
     x0 = [1.0, 1.0];
     w = [2.0, 3.0];
     rbf = Gaussian{Anisotropic{Aligned}, eltype(x0),length(x0)}(x0,w)
@@ -120,7 +120,7 @@ end
     @test rbf.w == [2.0,3.0]
 end
 
-@testset "Gaussian(x0::T_x, w::T_x): 1D RBF Outer Constructor" begin
+@testset "Gaussian(x0, w): 1D RBF Outer Constructor" begin
     x0 = 1.0;
     w = 2.0;
     rbf = Gaussian(x0, w)
@@ -129,7 +129,7 @@ end
     @test rbf.w == 2.0
 end
 
-@testset "Gaussian(x0::Vector{T_x}, w::T_x): Isotropic ND RBF Outer Constructor" begin
+@testset "Gaussian(x0::Vector, w): Isotropic ND RBF Outer Constructor" begin
     x0 = [1.0, 2.0, 3.0, 4.0, 5.0];
     w = 1.5;
     
@@ -140,7 +140,7 @@ end
     @test rbf.w == 1.5
 end
 
-@testset "Gaussian(x0::Vector{T_x}, w::Vector{T_x}): Vector construction ND RBF Outer Constructor" begin
+@testset "Gaussian(x0::Vector{T_x}, w::Vector{T_x}): Vector construction nD RBF Outer Constructor" begin
     x0 = [1.0];
     w = [2.0];
     rbf = Gaussian(x0, w) 
@@ -156,51 +156,103 @@ end
     @test rbf.w == [2.0, 3.0]
 end
 
-@testset "(rbf::Gaussian{Isotropic, T_x, dim})(x): Isotropic RBF Evaluation Functor" begin
+@testset "(rbf::Gaussian{Isotropic})(x): 1D/nD, single samples" begin
     x0 = [1.0];
     w = [2.0];
     rbf = Gaussian(x0, w)
     @test isapprox(rbf(2), 0.01831563888873418, atol=1e-13)
+
     x0 = [1.0, 2.0, 3.0, 4.0, 5.0];
     w = 1.5;
+    x_eval = [2.0,3.0,4.0,5.0,6.0]
     rbf = Gaussian(x0, w)
+    
     @test rbf(x0) == 1.0
-    @test isapprox(rbf([2.0,3.0,4.0,5.0,6.0]), 1.300729765406762e-05, atol=1e-13)
+    @test isapprox(rbf(x_eval), 1.300729765406762e-05, atol=1e-13)
 end
 
-@testset "(rbf::Gaussian{Anisotropic{Aligned}, T_x, dim})(x): Anisotropic RBF Evaluation Functor" begin
+@testset "(rbf::Gaussian{Anisotropic{Aligned})(x): nD, single samples" begin
     x0 = [1.0, 2.0, 3.0, 4.0, 5.0];
     w = [1.0, 1.5, 2.0, 2.5, 3.0];
+    x_eval = [2.0,3.0,4.0,5.0,6.0]
     rbf = Gaussian(x0, w)
+
     @test rbf(x0) == 1.0
-    @test isapprox(rbf([2.0,3.0,4.0,5.0,6.0]), 1.6918979226151304e-10, atol=1e-13)
+    @test isapprox(rbf(x_eval), 1.6918979226151304e-10, atol=1e-13)
 end
 
-@testset "eval_phi(x, theta::Vector{T_theta}, ::Type{Gaussian{Isotropic, T_x, dim}}): Isotropic RBF Evaluation" begin
+@testset "eval_phi(Gaussian{Isotropic}): 1D, single samples" begin
     x0 = [1.0];
     w = [2.0];
-    theta = [x0;w]
-    rbfeval1 = SLFA.eval_phi(1, theta, Gaussian{Isotropic, typeof(theta[1]), length(x0)})
-    @test isapprox(rbfeval1, 1.0, atol=1e-13)
-    rbfeval2 = SLFA.eval_phi(2, theta, Gaussian{Isotropic, typeof(theta[1]), length(x0)})
-    @test isapprox(rbfeval2, 0.01831563888873418, atol=1e-13)
+    theta = [x0; w]
+    
+    rbf_eval1 = SLFA.eval_phi(1, theta, Gaussian{Isotropic, typeof(theta[1]), length(x0)})
+    @test isapprox(rbf_eval1, 1.0, atol=1e-13)
+    
+    rbf_eval2 = SLFA.eval_phi(2, theta, Gaussian{Isotropic, typeof(theta[1]), length(x0)})
+    @test isapprox(rbf_eval2, 0.01831563888873418, atol=1e-13)
 end
 
-@testset "eval_phi(x, theta::Vector{T_theta}, ::Type{Gaussian{Anisotropic{Aligned}, T_x, dim}}): Isotropic RBF Evaluation" begin
+@testset "eval_phi(Gaussian{Isotropic}): 1D, multiple samples" begin
+    x0 = [1.0];
+    w = [2.0];
+    theta = [x0; w]
+    
+    X_eval = [1, 2]
+    rbf_eval = SLFA.eval_phi(X_eval, theta, Gaussian{Isotropic, typeof(theta[1]), length(x0)})
+
+    @test isapprox(rbf_eval[1], 1.0, atol=1e-13)
+    @test isapprox(rbf_eval[2], 0.01831563888873418, atol=1e-13)
+end
+
+@testset "eval_phi(Gaussian{Isotropic}): nD, multiple samples" begin
+    x0 = [1.0, 2.0, 3.0, 4.0, 5.0];
+    w = 1.5;
+    theta = [x0; w]
+
+    x_eval = [2.0,3.0,4.0,5.0,6.0]
+    X_eval = [x0 x_eval]
+
+    rbf_eval = SLFA.eval_phi(X_eval, theta, Gaussian{Isotropic, typeof(theta[1]), length(x0)})
+    @test isapprox(rbf_eval[1], 1.0, atol=1e-13)
+    @test isapprox(rbf_eval[2], 1.300729765406762e-05, atol=1e-13)
+end
+
+@testset "eval_phi(Gaussian{Anisotropic{Aligned}}): nD, single samples" begin
     x0 = [1.0, 2.0, 3.0, 4.0, 5.0];
     w = [1.0, 1.5, 2.0, 2.5, 3.0];
+
+    x_eval = [2.0,3.0,4.0,5.0,6.0]
     theta = [x0;w]
-    rbfeval1 = SLFA.eval_phi(x0, theta, Gaussian{Anisotropic{Aligned}, typeof(theta[1]), length(x0)})
-    rbfeval2 = SLFA.eval_phi([2.0,3.0,4.0,5.0,6.0], theta, Gaussian{Anisotropic{Aligned}, typeof(theta[1]),length(x0)})
-    @test rbfeval1 == 1.0
-    @test isapprox(rbfeval2, 1.6918979226151304e-10, atol=1e-13)
+
+    rbf_eval1 = SLFA.eval_phi(x0, theta, Gaussian{Anisotropic{Aligned}, typeof(theta[1]), length(x0)})
+    rbf_eval2 = SLFA.eval_phi(x_eval, theta, Gaussian{Anisotropic{Aligned}, typeof(theta[1]),length(x0)})
+    
+    @test rbf_eval1 == 1.0
+    @test isapprox(rbf_eval2, 1.6918979226151304e-10, atol=1e-13)
 end
 
-@testset "size(::Type{Gaussian{Isotropic, T_x, dim}}): Size of Isotropic RBF" begin
+
+@testset "eval_phi(Gaussian{Anisotropic{Aligned}}): nD, multiple samples" begin
+    x0 = [1.0, 2.0, 3.0, 4.0, 5.0];
+    w = [1.0, 1.5, 2.0, 2.5, 3.0];
+
+    theta = [x0;w]
+
+    x_eval = [2.0,3.0,4.0,5.0,6.0]
+    X_eval = [x0 x_eval]
+
+    rbf_eval = SLFA.eval_phi(X_eval, theta, Gaussian{Anisotropic{Aligned}, typeof(theta[1]), length(x0)})
+    
+    @test rbf_eval[1] == 1.0
+    @test isapprox(rbf_eval[2], 1.6918979226151304e-10, atol=1e-13)
+end
+
+@testset "size(Gaussian{Isotropic}): Size of Isotropic RBF" begin
     @test size(Gaussian{Isotropic, Float64, 3}) == 4
 end
 
-@testset "size(::Type{Gaussian{Anisotropic{Aligned}, T_x, dim}}): Size of Isotropic RBF" begin
+@testset "size(Gaussian{Anisotropic{Aligned}}): Size of Isotropic RBF" begin
     @test size(Gaussian{Anisotropic{Aligned}, Float64, 3}) == 6
 end
 
