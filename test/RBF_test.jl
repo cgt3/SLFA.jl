@@ -205,6 +205,16 @@ end
     @test isapprox(rbf_eval[2], 0.01831563888873418, atol=1e-13)
 end
 
+@testset "eval_phi(Gaussian{Isotropic}): 1D, multiple samples" begin
+    x0 = [1.0];
+    w = [2.0];
+    theta = [x0; w]
+    
+    rbf_eval = SLFA.eval_phi(Float64[], theta, Gaussian{Isotropic, typeof(theta[1]), length(x0)})
+
+    @test rbf_eval == Float64[]
+end
+
 @testset "eval_phi(Gaussian{Isotropic}): nD, multiple samples" begin
     x0 = [1.0, 2.0, 3.0, 4.0, 5.0];
     w = 1.5;

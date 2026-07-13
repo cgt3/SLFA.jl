@@ -130,6 +130,10 @@ function eval_phi(x::Real, theta::Vector{T_theta}, ::Type{Gaussian{Isotropic, T_
 end
 
 function eval_phi(x::Vector{<:Real}, theta::Vector{T_theta}, ::Type{Gaussian{Isotropic, T_x, dim}}) where {dim, T_theta<:Number, T_x<:Real}
+    if isempty(x)
+        return T_theta[]
+    end
+
     if dim == 1
         return exp.( - (theta[dim+1] .*(x .- theta[1:dim])) .^ 2 )
     else
@@ -138,10 +142,18 @@ function eval_phi(x::Vector{<:Real}, theta::Vector{T_theta}, ::Type{Gaussian{Iso
 end
 
 function eval_phi(x::Vector{<:Real}, theta::Vector{T_theta}, ::Type{Gaussian{Anisotropic{Aligned}, T_x, dim}}) where {dim, T_theta<:Number, T_x<:Real}
+    if isempty(x)
+        return T_theta[]
+    end
+    
     return exp( -sum( (theta[(dim+1):2*dim] .*(x .- theta[1:dim])) .^ 2 ) )
 end
 
 function eval_phi(X::Matrix{<:Real}, theta::Vector{T_theta}, ::Type{Gaussian{Isotropic, T_x, dim}}) where {dim, T_theta<:Number, T_x<:Real}
+    if isempty(X)
+        return T_theta[]
+    end
+    
     n = num_samples(X);
     result = zeros(T_theta, n)
     for i in eachindex(result)
