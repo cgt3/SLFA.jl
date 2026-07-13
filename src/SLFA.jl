@@ -202,6 +202,10 @@ function RBFN(Theta::Matrix{T_theta}, T_phi::Type{<:BasisFunction}) where T_thet
     return RBFN(a0, a, phi_all)
 end
 
+@inline function dimension(::RBFN{T_phi, T_y}) where {T_phi<:BasisFunction, T_y<:Number}
+    return dimension(T_phi)
+end
+
 # Functors for RBFNs
 function (network::RBFN{T_phi, T_y})(x::Real) where {T_phi<:BasisFunction, T_y<:Number}
     result = network.a0
