@@ -20,7 +20,8 @@ export Extremum, Maximum, Minimum
 export RBF, RBFN
 
 # Functions
-export dist!, num_samples, getsample, get_nbr_matrix1D, get_support_set, get_2k_extrema, get_best_extrema 
+export dist!, num_samples, getsample, size, dimension
+export get_nbr_matrix1D, get_support_set, get_2k_extrema, get_best_extrema 
 export get_RBFN_vandermonde, eval_phi, train_RBFN, train_RBFN_quasi1D
 
 # Abstract data types for classifying/parameterizing RBFs
@@ -33,10 +34,10 @@ abstract type Isotropic <:RBF_Shape end
 abstract type Anisotropic{T_orientation} <:RBF_Shape end
 
 # Abstract type for setting RBF parameters
-abstract type BasisFunction end
-abstract type RBF <: BasisFunction end
+abstract type BasisFunction{dim} end
+abstract type RBF{dim} <: BasisFunction{dim} end
 
-struct Gaussian{T_shape, T_x<:Real, dim} <: RBF
+struct Gaussian{T_shape, T_x<:Real, dim} <: RBF{dim}
     x0::Union{Vector{T_x}, T_x}
     w::Union{Matrix{T_x}, Vector{T_x}, T_x}
 
@@ -158,12 +159,21 @@ function eval_phi(X::Matrix{<:Real}, theta::Vector{T_theta}, ::Type{Gaussian{Ani
     return result
 end
 
+# Functions for getting the dimension of a basis function
+@inline function dimension(::Type{<:BasisFunction{dim}}) where {dim}
+    return dim 
+end
+
+@inline function dimension(phi::BasisFunction)
+    return dimension(typeof(phi))
+end
+
 # Functions for getting the number of parameters 
-function size(::Type{Gaussian{Isotropic, T_x, dim}}) where {dim, T_x<:Real}
+@inline function size(::Type{Gaussian{Isotropic, T_x, dim}}) where {dim, T_x<:Real}
     return dim + 1
 end
 
-function size(::Type{Gaussian{Anisotropic{Aligned}, T_x, dim}}) where {dim, T_x<:Real}
+@inline function size(::Type{Gaussian{Anisotropic{Aligned}, T_x, dim}}) where {dim, T_x<:Real}
     return 2*dim
 end
 
@@ -192,24 +202,38 @@ function RBFN(Theta::Matrix{T_theta}, T_phi::Type{<:BasisFunction}) where T_thet
     return RBFN(a0, a, phi_all)
 end
 
-# Functor for RBFNs
-function (network::RBFN)(x::Number)
+# Functors for RBFNs
+function (network::RBFN{T_phi, T_y})(x::Real) where {T_phi<:BasisFunction, T_y<:Number}
     result = network.a0
-    
     for k = 1:network.N
         result += network.a[k]*network.phi[k](x)
     end
-
     return result
 end
 
-function (network::RBFN)(x::Vector{T_x}) where T_x<:Real
-    result = network.a0
-    
+function (network::RBFN{T_phi, T_y})(X::Vector{T_x}) where {T_phi<:BasisFunction{1}, T_y<:Number, T_x<:Real}
+    n = num_samples(X)
+    result = zeros(T_y, n)
+    for i in 1:n
+        result[i] = network(getsample(X,i))
+    end
+    return result
+end
+
+function (network::RBFN{T_phi, T_y})(x::Vector{T_x}) where {dim, T_phi<:BasisFunction{dim}, T_y<:Number, T_x<:Real}
+    result = network.a0 
     for k = 1:network.N
         result += network.a[k]*network.phi[k](x)
     end
+    return result
+end
 
+function (network::RBFN{T_phi, T_y})(X::Matrix{T_x}) where {dim, T_phi<:BasisFunction{dim}, T_y<:Number, T_x<:Real}
+    n = num_samples(X)
+    result = zeros(T_y, n)
+    for i in 1:n
+        result[i] = network(getsample(X,i))
+    end
     return result
 end
 

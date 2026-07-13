@@ -248,11 +248,21 @@ end
     @test isapprox(rbf_eval[2], 1.6918979226151304e-10, atol=1e-13)
 end
 
-@testset "size(Gaussian{Isotropic}): Size of Isotropic RBF" begin
+@testset "dimension(Gaussian{Isotropic})" begin
+    @test dimension(Gaussian{Isotropic, Float64, 3}([1.0, 1.0, 1.0], 1.0)) == 3
+    @test dimension(Gaussian{Isotropic, Float64, 3}) == 3
+end
+
+@testset "dimension(Gaussian{Anisotropic{Aligned}})" begin
+    @test dimension(Gaussian{Anisotropic{Aligned}, Float64, 2}([1.0, 1.0], [1.0, 1.0])) == 2
+    @test dimension(Gaussian{Anisotropic{Aligned}, Float64, 2}) == 2
+end
+
+@testset "size(Gaussian{Isotropic})" begin
     @test size(Gaussian{Isotropic, Float64, 3}) == 4
 end
 
-@testset "size(Gaussian{Anisotropic{Aligned}}): Size of Isotropic RBF" begin
+@testset "size(Gaussian{Anisotropic{Aligned}})" begin
     @test size(Gaussian{Anisotropic{Aligned}, Float64, 3}) == 6
 end
 
