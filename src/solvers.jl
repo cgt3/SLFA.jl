@@ -36,7 +36,7 @@ end
 
 # Initial guess generators
 function max_dist_theta0(X, res, A, D, i_extrema, support_set, I_terminal, extremum_type::Extremum, ::Type{Gaussian{Isotropic, T_x, dim}}; tol=MACHINE_EPS_FACTOR*eps(eltype(res))) where {T_x<:Real, dim}
-    diff = X[:,I_terminal][:,1,:] .- getsample(X,i_extrema)
+    diff = getsamples(X,I_terminal) .- getsample(X,i_extrema)
     
     min_dist, max_dist = extrema(abs.(diff))
 
@@ -64,10 +64,10 @@ function max_dist_theta0(X, res, A, D, i_extrema, support_set, I_terminal, extre
 end
 
 function max_dist_theta0(X, res, A, D, i_extrema, support_set, I_terminal, extremum_type::Extremum, ::Type{Gaussian{Anisotropic{Aligned}, T_x, dim}}; tol=MACHINE_EPS_FACTOR*eps(eltype(res))) where {T_x<:Real, dim}
-    diff = X[:,I_terminal][:,1,:] .- getsample(X,i_extrema)
+    diff = getsamples(X,I_terminal) .- getsample(X,i_extrema)
     
-    max_dist = [ maximum(abs.(diff[i,:])) for i in axes(diff, 2)]
-    min_dist = [ minimum(abs.(diff[i,:])) for i in axes(diff, 2)]
+    max_dist = [ maximum(abs.(diff[i,:])) for i in axes(diff, 1)]
+    min_dist = [ minimum(abs.(diff[i,:])) for i in axes(diff, 1)]
 
     max_dist[max_dist .< 1e-14] .= 0.5*minimum(D[A])
 

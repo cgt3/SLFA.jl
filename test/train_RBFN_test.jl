@@ -255,7 +255,7 @@ end
     X = [0.0, 0.5, 1.0]
     y = [1.0, 2.0, 3.0]
     T_phi = Gaussian{Isotropic, Float64, 1}
-    Theta, res_history, res, res_validation, N, T_phi, Theta0, A, D = train_RBFN(X, y, N_max=1)
+    Theta, res_history, res, res_validation, N, T_phi, Theta0, a_orig, A, D = train_RBFN(X, y, N_max=1)
     @test size(Theta) == (1, 4)
     @test size(res_history,1) == (2)
     @test size(res,1) == (3)
@@ -283,7 +283,7 @@ end
     y = [1.0, 2.0, 3.0]
     T_phi = Gaussian{Isotropic, Float64, 1}
     conv_thresholds = [1e10, 1e10, 1e10]
-    Theta, res_history, res, res_validation, N, T_phi, Theta0, A, D = train_RBFN(X, y; N_max=10, conv_thresholds=conv_thresholds)
+    Theta, res_history, res, res_validation, N, T_phi, Theta0, a_orig, A, D = train_RBFN(X, y; N_max=10, conv_thresholds=conv_thresholds)
     @test N == 0
     @test res_history == [2]
     @test res == y
