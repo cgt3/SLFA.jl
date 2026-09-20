@@ -471,20 +471,21 @@ function train_RBFN(X::Union{Vector{T_x}, Matrix{T_x}}, y::Vector{T_y}, A::Abstr
         push!(res_history, res_error)
     end
 
+    a_orig = []
     Theta = Theta[1:N,:]
     Theta0 = Theta0[1:N,:]
     if redistribute_wts_final
         V = get_RBFN_vandermonde(X, Theta, T_phi)
         a_new = V \ y
 
+        a_orig = Theta[:, end-1]
         Theta[:, end-1] = a_new[2:end]
         a0_new = a_new[1]
         a0 = sum(Theta[:,end])
-        da0 = a0_new - a0
-        Theta[:,end] .+= da0 / size(Theta,1)
+        Theta[end, end] += a0_new - a0
     end
 
-    return Theta, res_history, res, res_validation, N, T_phi, Theta0
+    return Theta, res_history, res, res_validation, N, T_phi, Theta0, a_orig
 end
 
 
