@@ -39,8 +39,16 @@ end
     return X[i]
 end
 
+@inline function getsamples(X::Vector{<:Real}, I::Vector{<:Integer})
+    return X[I]
+end
+
 @inline function getsample(X::Matrix{<:Real}, i::Integer)
     return X[:,i]
+end
+
+@inline function getsamples(X::Matrix{<:Real}, I::Vector{<:Integer})
+    return X[:,I][:,1,:]
 end
 
 @inline function dist!(D::AbstractMatrix, i1::Integer, i2::Integer, X::Vector{T_x}) where T_x<:AbstractFloat
@@ -471,20 +479,21 @@ function train_RBFN(X::Union{Vector{T_x}, Matrix{T_x}}, y::Vector{T_y}, A::Abstr
         push!(res_history, res_error)
     end
 
+    a_orig = []
     Theta = Theta[1:N,:]
     Theta0 = Theta0[1:N,:]
-    if redistribute_wts_final
+    if redistribute_wts_final && size(Theta,1) > 0
         V = get_RBFN_vandermonde(X, Theta, T_phi)
         a_new = V \ y
 
+        a_orig = Theta[:, end-1]
         Theta[:, end-1] = a_new[2:end]
         a0_new = a_new[1]
-        a0 = sum(Theta[:,end])
-        da0 = a0_new - a0
-        Theta[:,end] .+= da0 / size(Theta,1)
+        a0 = sum(Theta[:, end])
+        Theta[end, end] += a0_new - a0
     end
 
-    return Theta, res_history, res, res_validation, N, T_phi, Theta0
+    return Theta, res_history, res, res_validation, N, T_phi, Theta0, a_orig
 end
 
 

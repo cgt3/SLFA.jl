@@ -76,7 +76,8 @@ end
     extremum_type = Maximum()
 
     # Tests general case with maximum
-    @test max_dist_theta0(X, res, A, D, i_extrema, support_set, I_terminal, extremum_type, Gaussian{Isotropic, Float64, 1}) == [0.5, 5.0, only(X[i_extrema,:]), 0.0]
+    theta0 = max_dist_theta0(X, res, A, D, i_extrema, support_set, I_terminal, extremum_type, Gaussian{Isotropic, Float64, 1}) 
+    @test theta0 == [0.5, 5.0, getsample(X,i_extrema), 0.0]
 end
 
 @testset "max_dist_theta0: Initial Guess RBF using maximum distance - Small extrema" begin
@@ -90,15 +91,18 @@ end
     support_set = [true, true, false]
 
     # Test if support set is not full data set
-    @test max_dist_theta0(X, res, A, D, i_extrema, support_set, I_terminal, extremum_type, Gaussian{Isotropic, Float64, 1}) == [0.5, 5.0, res[i_extrema]-1, 1.0] 
+    theta0 = max_dist_theta0(X, res, A, D, i_extrema, support_set, I_terminal, extremum_type, Gaussian{Isotropic, Float64, 1})
+    @test theta0 == [0.5, 5.0, res[i_extrema]-1, 1.0] 
     
     # Test if extremum is a maximum
     support_set = [true, true, true]
-    @test max_dist_theta0(X, res, A, D, i_extrema, support_set, I_terminal, extremum_type, Gaussian{Isotropic, Float64, 1}) == [0.5, 5.0, res[i_extrema]-minimum(res), minimum(res)] 
+    theta0 = max_dist_theta0(X, res, A, D, i_extrema, support_set, I_terminal, extremum_type, Gaussian{Isotropic, Float64, 1}) 
+    @test theta0 == [0.5, 5.0, res[i_extrema]-minimum(res), minimum(res)] 
     
     # Test if extremum is a minimum
     extremum_type = Minimum()
-    @test max_dist_theta0(X, res, A, D, i_extrema, support_set, I_terminal, extremum_type, Gaussian{Isotropic, Float64, 1}) == [0.5, 5.0, res[i_extrema]-maximum(res), maximum(res)] 
+    theta0 = max_dist_theta0(X, res, A, D, i_extrema, support_set, I_terminal, extremum_type, Gaussian{Isotropic, Float64, 1})
+    @test theta0 == [0.5, 5.0, res[i_extrema]-maximum(res), maximum(res)] 
 end
 
 @testset "squaredTV: Squared TV Penalty Value" begin
@@ -148,7 +152,7 @@ end
     extremum_type = Maximum()
     N = 1
     theta0 = max_dist_theta0(X, res, A, D, i_extrema, support_set, I_terminal, extremum_type, Gaussian{Isotropic, Float64, 1})
-    @test all(isa.(lsq_solver(theta0, X, res, A, D, N, Gaussian{Isotropic, Float64, 1}),Number))
+    @test all(isa.(lsq_solver(theta0, X, res, A, D, N, Gaussian{Isotropic, Float64, 1}), Number))
 end
 
 @testset "lsq_TV_solver: RBF Combined TV Penalty Solver" begin
